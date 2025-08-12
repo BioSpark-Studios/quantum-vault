@@ -1,27 +1,14 @@
-# 🧿 Quantum Vault
+# 🧪 Dashboard UI
 
-_The Control Room of BioSpark Studio._
+Control Room interface for managing plugin slots, license scrolls, and remix lineage.
 
-Quantum Vault is the central hub for managing creative licenses, discovering remixable Capsules, and embodying studio identities through Vault personas. It powers the storefront UI, license dashboard, and symbolic overlays that define the mythic architecture of BioSpark.
+## Features
+- Slot orchestration and plugin activation
+- Scroll binding interface
+- Capsule discovery and remix tracking
 
-## Modules
+## Tech Stack
+React + Tailwind + modular panels
 
-- **Control Room Dashboard** – License management and studio overview
-- **Storefront UI** – Discover and filter plugins, Capsules, and glyphs
-- **LicenseForge** – Modular license token generator and validator
-- **Vault Personas** – Studio profiles and symbolic identity overlays
-
-## Branches
-
-| Branch         | Purpose                                  |
-|----------------|------------------------------------------|
-| `main`         | Stable release                           |
-| `dashboard-ui` | Control Room interface                   |
-| `license-core` | License logic and scroll rendering       |
-| `storefront`   | Plugin/Capsule discovery and filtering   |
-| `personas`     | Vault persona logic                      |
-| `dev`          | Experimental features and integrations   |
-
-## License
-
-This repo is private and mythically licensed. For access or collaboration, contact the Gatekeeper of BioSpark Studio.
+## Integration
+Used by Quantum Quill and Studio Scribe for real-time license management.
