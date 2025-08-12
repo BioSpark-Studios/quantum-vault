@@ -1,3 +1,16 @@
+
+# 🔐 License Core
+
+Vault logic engine for scroll parsing, token validation, and plugin access.
+
+## Features
+- License token generation
+- Scroll lineage tracking
+- Sovereignty tier logic
+
+## Usage
+Imported by dashboard-ui and storefront branches.
+=======
 # 🧠 Dev Branch
 
 Experimental zone for vault logic, UI prototypes, and glyph overlays.
@@ -50,4 +63,5 @@ Symbolic overlays and persona bindings for mythic license scrolls.
 ## Assets
 SVG-based glyphs with JSON trait maps. Supports theme injection and remixable overlays.
 main
+
 
