@@ -1,3 +1,18 @@
+# 🧪 Vault Control
+
+Dashboard UI for managing plugin slots, license scrolls, and remix chains.
+
+## Features
+- Plugin slot orchestration and scroll binding
+- Capsule discovery and remix tracking
+- Real-time license validation interface
+
+## Tech Stack
+React + Tailwind. Modular panels and slot components.
+
+## Integration
+Connects to vault-core and vault-scrolls for license logic and metadata.
+=======
 vault-scrolls
 # 📜 Vault Scrolls
 
@@ -23,3 +38,4 @@ Symbolic overlays and persona bindings for mythic license scrolls.
 ## Assets
 SVG-based glyphs with JSON trait maps. Supports theme injection and remixable overlays.
 main
+
