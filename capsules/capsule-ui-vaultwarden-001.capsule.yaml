@@ -1,0 +1,21 @@
+capsule_id: capsule-ui-vaultwarden-001
+title: Vaultwarden License Gate Capsule
+creator: Vaultwarden
+persona: Vaultwarden
+remixable: false
+license_tier: Studio
+glyphs:
+  - name: License Gate Glyph
+    symbol: "🛡️🔐"
+    traits: [Scroll Validation, Plugin Access]
+  - name: Remix Chain Sentinel
+    symbol: "📜🧬"
+    traits: [Lineage Tracking, Sovereignty Enforcement]
+scroll_binding:
+  scroll_id: scroll-vaultwarden-000
+  lineage:
+    origin: vault-core
+    remix_chain:
+      - scroll-core-000
+      - scroll-vaultwarden-000
+signature: "🛡️🔐📜"
