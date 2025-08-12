@@ -1,0 +1,63 @@
+{
+  "scroll_id": "scroll-xyrona-001",
+  "title": "Xyrona Prime Plugin Scroll",
+  "bound_persona": "Xyrona Prime",
+  "license_tier": "Studio",
+  "remixable": true,
+  "valid_until": "2026-12-31",
+  "capsule_refs": [
+    "capsule-glyph-astral-003",
+    "capsule-ui-vault-007"
+  ],
+  "traits": ["Plugin Discovery", "Capsule Remix"],
+  "lineage": {
+    "origin": "vault-scrolls",
+    "remix_chain": [
+      "scroll-core-000",
+      "scroll-xyrona-001"
+    ]
+  },
+  "signature": "🛡️🔐📜",
+  "description": "This scroll contains the Xyrona Prime Plugin, designed to enhance the capabilities of the Xyrona Prime persona. It includes advanced features for plugin discovery and capsule remixing, allowing users to explore and customize their experience.",
+  "features": [
+    "Enhanced plugin discovery",
+    "Capsule remixing capabilities",
+    "Integration with Xyrona Prime persona"
+  ],
+  "usage_instructions": "To use this scroll, activate it within the Xyrona Prime environment. Explore available plugins and remixes to tailor your experience.",
+  "metadata": {
+    "created_at": "2024-01-15",
+    "updated_at": "2024-01-20",
+    "author": "Xyrona Development Team",
+    "version": "1.0.0"
+  },
+  "related_resources": [
+    {
+      "type": "documentation",
+      "url": "https://xyrona.dev/docs/plugin-scrolls"
+    },
+    {
+      "type": "community_forum",
+      "url": "https://forum.xyrona.dev"
+    }
+  ],
+  "tags": ["plugin", "Xyrona Prime", "scroll", "capsule"],
+  "compatibility": {
+    "required_version": "1.2.0",
+    "supported_personas": ["Xyrona Prime"]
+  },
+  "installation_notes": "Ensure that you have the latest version of the Xyrona Prime environment installed before activating this scroll.",
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2024-01-20",
+      "changes": [
+        "Initial release of the Xyrona Prime Plugin Scroll.",
+        "Added features for plugin discovery and capsule remixing."
+      ]
+    }
+  ],
+  "support_info": {
+    "contact_email": "phantori@hotmail.com"
+  }
+}
