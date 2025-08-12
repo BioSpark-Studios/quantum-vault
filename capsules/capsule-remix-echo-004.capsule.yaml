@@ -1,0 +1,21 @@
+capsule_id: capsule-remix-echo-004
+title: Echo Scribe Remix Metadata Capsule
+creator: Echo Scribe
+persona: Echo Scribe
+remixable: true
+license_tier: Free
+glyphs:
+  - name: Remix Token Glyph
+    symbol: "🧬🔁"
+    traits: [Remix Chain, Token Generation]
+  - name: Scroll Schema Glyph
+    symbol: "📜🧠"
+    traits: [Metadata Parsing, Scroll Binding]
+scroll_binding:
+  scroll_id: scroll-echo-002
+  lineage:
+    origin: vault-scrolls
+    remix_chain:
+      - scroll-core-000
+      - scroll-echo-002
+signature: "📜🧬✨"

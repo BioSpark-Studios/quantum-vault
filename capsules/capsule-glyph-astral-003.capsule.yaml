@@ -1,0 +1,21 @@
+capsule_id: capsule-glyph-astral-003
+title: Astral Codex Overlay Set
+creator: Astral Codex
+persona: Astral Codex
+remixable: true
+license_tier: Free
+glyphs:
+  - name: Codex Star
+    symbol: "✨🧿"
+    traits: [Trait Rendering, Overlay Alchemy]
+  - name: Mythic Pulse
+    symbol: "🌌🔮"
+    traits: [Symbolic Overlays, Remix Trigger]
+scroll_binding:
+  scroll_id: scroll-astral-002
+  lineage:
+    origin: vault-glyphs
+    remix_chain:
+      - scroll-core-000
+      - scroll-astral-002
+signature: "🧩✨"
