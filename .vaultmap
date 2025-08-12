@@ -1,0 +1,60 @@
+vaultmap:
+  repo: quantum-vault
+  description: Mythic licensing engine for modular creative ecosystems
+  remixable: true
+  sovereign_tiers:
+    - Free
+    - Studio
+    - Mythic
+  personas:
+    Vaultwarden:
+      role: Sentinel of Scrolls
+      traits: [License Gate, Scroll Lore, Remix Chain]
+    Echo Scribe:
+      role: Scroll Binder and Metadata Weaver
+      traits: [Remix Metadata, Scroll Definitions]
+    Xyrona Prime:
+      role: Capsule Curator and Showcase Architect
+      traits: [Plugin Discovery, Capsule Remix]
+    Astral Codex:
+      role: Glyph Designer and Overlay Alchemist
+      traits: [Symbolic Overlays, Trait Rendering]
+  branches:
+    - name: vault-core
+      role: License logic and scroll parsing
+      personas: [Vaultwarden]
+      remix_chain: true
+    - name: vault-scrolls
+      role: Mythic license definitions and remix metadata
+      personas: [Echo Scribe]
+      remix_chain: true
+    - name: vault-glyphs
+      role: Persona overlays and symbolic glyphs
+      personas: [Astral Codex]
+      remixable: true
+    - name: dashboard-ui
+      role: Control Room interface and plugin slot orchestration
+      personas: [Vaultwarden, Echo Scribe]
+    - name: storefront
+      role: Plugin discovery and Capsule showcase
+      personas: [Xyrona Prime]
+    - name: personas
+      role: Trait overlays and glyph rendering
+      personas: [Astral Codex, Echo Scribe]
+    - name: license-core
+      role: License token logic and scroll validation
+      personas: [Vaultwarden]
+  remix_lineage:
+    enabled: true
+    scroll_format: .scroll.json
+    capsule_format: .capsule.yaml
+    lineage_tracking: true
+    remix_tokens: true
+  glyph_coordinates:
+    vault-core: "🛡️🔐"
+    vault-scrolls: "📜🧬"
+    vault-glyphs: "🧩✨"
+    dashboard-ui: "🎛️🧠"
+    storefront: "🛍️🌌"
+    personas: "🧠🧿"
+    license-core: "🔐📜"
