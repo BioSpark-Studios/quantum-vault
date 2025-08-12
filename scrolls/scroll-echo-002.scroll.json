@@ -1,0 +1,54 @@
+{
+  "scroll": {
+    "scroll_id": "scroll-echo-002",
+    "title": "Echo Scribe Remix Metadata Scroll",
+    "bound_persona": "Echo Scribe",
+    "license_tier": "Free",
+    "remixable": true,
+    "valid_until": "2026-06-30",
+    "capsule_refs": [
+      "capsule-remix-echo-004"
+    ],
+    "traits": ["Remix Metadata", "Scroll Definitions"],
+    "lineage": {
+      "origin": "vault-scrolls",
+      "remix_chain": [
+        "scroll-core-000",
+        "scroll-echo-002"
+      ]
+    },
+    "signature": "📜🧬✨"
+  },
+  "description": "This scroll defines the remix metadata schema used by Echo Scribe to track remix lineage, scroll bindings, and remix token logic. It enables performable remix chains and scroll introspection.",
+  "features": [
+    "Remix token generation",
+    "Scroll metadata schema",
+    "Lineage tracking and introspection"
+  ],
+  "usage_instructions": "Bind this scroll to Echo Scribe. Use it to validate remix chains, generate remix tokens, and parse scroll metadata in Control Room.",
+  "metadata": {
+    "created_at": "2024-03-01",
+    "updated_at": "2024-03-10",
+    "author": "Echo Scribe Collective",
+    "version": "1.0.0"
+  },
+  "tags": ["remix", "metadata", "scroll", "Echo Scribe"],
+  "compatibility": {
+    "required_version": "1.1.0",
+    "supported_personas": ["Echo Scribe"]
+  },
+  "installation_notes": "Ensure vault-scrolls and dashboard-ui modules are active before using this scroll.",
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2024-03-10",
+      "changes": [
+        "Initial release of Echo Scribe Remix Metadata Scroll.",
+        "Added remix token logic and scroll schema definitions."
+      ]
+    }
+  ],
+  "support_info": {
+    "contact_email": "phantori@hotmail.com"
+  }
+}
