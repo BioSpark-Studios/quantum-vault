@@ -8,15 +8,26 @@ Quantum Vault empowers creators to manage plugin access, remix rights, and perfo
 
 ## 🛡️ Vaultwarden Glyph
 
-╔═════════════════════╗ 
-║  🛡️ VAULTWARDEN     ║ 
-║ Sentinel of Scrolls ║ 
-║ Keeper of Capsules  ║ 
-╚═════════════════════╝ 
-║ ║ ║ 
-[🔐] [📜] [🧬] 
-License Scroll Remix 
-Gate Lore Chain
+<svg width="300" height="220" viewBox="0 0 300 220" xmlns="http://www.w3.org/2000/svg">
+  <rect x="10" y="10" width="280" height="100" rx="12" fill="#1e1e2f" stroke="#8f9bb3" stroke-width="2"/>
+  <text x="150" y="40" font-size="18" fill="#f5f5f5" text-anchor="middle" font-family="Verdana">🛡️ VAULTWARDEN</text>
+  <text x="150" y="65" font-size="14" fill="#c0c0c0" text-anchor="middle" font-family="Verdana">Sentinel of Scrolls</text>
+  <text x="150" y="85" font-size="14" fill="#c0c0c0" text-anchor="middle" font-family="Verdana">Keeper of Capsules</text>
+
+  <line x1="150" y1="110" x2="150" y2="130" stroke="#8f9bb3" stroke-width="2"/>
+  <circle cx="90" cy="160" r="20" fill="#2e2e3f" stroke="#8f9bb3" stroke-width="2"/>
+  <circle cx="150" cy="160" r="20" fill="#2e2e3f" stroke="#8f9bb3" stroke-width="2"/>
+  <circle cx="210" cy="160" r="20" fill="#2e2e3f" stroke="#8f9bb3" stroke-width="2"/>
+
+  <text x="90" y="165" font-size="14" fill="#f5f5f5" text-anchor="middle">🔐</text>
+  <text x="150" y="165" font-size="14" fill="#f5f5f5" text-anchor="middle">📜</text>
+  <text x="210" y="165" font-size="14" fill="#f5f5f5" text-anchor="middle">🧬</text>
+
+  <text x="90" y="190" font-size="10" fill="#c0c0c0" text-anchor="middle">License Gate</text>
+  <text x="150" y="190" font-size="10" fill="#c0c0c0" text-anchor="middle">Scroll Lore</text>
+  <text x="210" y="190" font-size="10" fill="#c0c0c0" text-anchor="middle">Remix Chain</text>
+</svg>
+
 
 
 _The Sentinel of Sovereignty_  
