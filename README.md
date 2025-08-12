@@ -2,6 +2,11 @@
 
 Control Room interface for managing plugin slots, license scrolls, and remix lineage.
 
+![Dashboard UI](https://img.shields.io/badge/Dashboard_UI-React%2FTailwind-blue)
+![License Core](https://img.shields.io/badge/License_Core-TypeScript-green)
+![Vault Personas](https://img.shields.io/badge/Personas-Glyph_Overlay-purple)
+
+
 ## Features
 - Slot orchestration and plugin activation
 - Scroll binding interface
@@ -116,7 +121,42 @@ Symbolic overlays and persona bindings for mythic license scrolls.
 
 ## Assets
 SVG-based glyphs with JSON trait maps. Supports theme injection and remixable overlays.
-main
+
+---
+
+## 🧩 Modules & Interfaces  
+| Module | Description | Integration |
+|--------|-------------|-------------|
+| 🧪 Dashboard UI | Control Room interface for plugin slots, license scrolls, and remix lineage | Quantum Quill, Studio Scribe |
+| 🛍️ Vault Storefront | Plugin marketplace, scroll licensing, and remix showcase | Dashboard UI, License Core |
+| 🔐 License Core | Scroll parsing, token validation, and sovereignty logic | Dashboard UI, Storefront |
+| 🧬 Vault Personas | Trait overlays and glyph rendering for scroll-bound identities | Vaultwarden themes |
+| 📜 Vault Scrolls | Mythic license definitions and remix metadata | License Core, Personas |
+| 🧬 Vault Glyphs | Symbolic overlays and remix lineage visualization | Scrolls, Personas |
+
+---
+
+## 📜 Scroll Registry  
+- [Xyrona Prime Scrolls](https://github.com/BioSpark-Studios/quantum-vault/tree/main/scrolls#xyrona) — Astral overlays and remix chains  
+- [Echo Scrolls](https://github.com/BioSpark-Studios/quantum-vault/tree/main/scrolls#echo) — Emotional resonance and trait logic  
+- [Vaultwarden Scrolls](https://github.com/BioSpark-Studios/quantum-vault/tree/main/scrolls#vaultwarden) — Sovereignty glyphs and remix rights  
+
+---
+
+## 🧬 Glyph Overlays  
+> “Vaultwarden glyphs shimmer with sovereignty logic, binding remix lineage to trait overlays.”
+
+- 🌀 Xyrona: Astral glyphs with pulse cues  
+- 💠 Echo: Emotion-reactive overlays  
+- 🛡️ Vaultwarden: Sovereignty-bound sigils  
+
+---
+
+## 🧠 Dev Branch Highlights  
+- 🧬 Added trait overlays to Vault Personas  
+- 📜 Prototyped remixable scroll logic for Echo  
+- 🛍️ Sandbox storefront UI with capsule injection  
+
 
 
 
