@@ -1,0 +1,66 @@
+[
+  {
+    "id": "sovereign_001",
+    "glyph": "👑",
+    "trait": "Sovereign",
+    "emotion": "Authority",
+    "persona": "Vaultwarden",
+    "usedIn": ["ControlRoom", "PersonaOverlay"]
+  },
+  {
+    "id": "threader_001",
+    "glyph": "🧵",
+    "trait": "Threader",
+    "emotion": "Curiosity",
+    "persona": "Echo Weaver",
+    "usedIn": ["RemixLineage", "CapsuleViewer"]
+  },
+  {
+    "id": "sentinel_001",
+    "glyph": "🛡️",
+    "trait": "Sentinel",
+    "emotion": "Protection",
+    "persona": "Vaultwarden",
+    "usedIn": ["CapsuleViewer", "PluginSlot"]
+  },
+  {
+    "id": "echo_001",
+    "glyph": "🔊",
+    "trait": "Echo",
+    "emotion": "Resonance",
+    "persona": "Echo Weaver",
+    "usedIn": ["RemixLineage"]
+  },
+  {
+    "id": "verifier_001",
+    "glyph": "🔍",
+    "trait": "Verifier",
+    "emotion": "Discernment",
+    "persona": "Gatekeeper",
+    "usedIn": ["PluginSlot"]
+  },
+  {
+    "id": "navigator_001",
+    "glyph": "🧭",
+    "trait": "Navigator",
+    "emotion": "Clarity",
+    "persona": "Star Seeker",
+    "usedIn": ["ControlRoom", "CapsuleViewer"]
+  },
+  {
+    "id": "grief_001",
+    "glyph": "🌑",
+    "trait": "Grief",
+    "emotion": "Loss",
+    "persona": "Shadow Archivist",
+    "usedIn": ["EmotionEnginePlugin"]
+  },
+  {
+    "id": "wonder_001",
+    "glyph": "✨",
+    "trait": "Wonder",
+    "emotion": "Awe",
+    "persona": "Dream Weaver",
+    "usedIn": ["CapsuleViewer", "PersonaOverlay"]
+  }
+]
