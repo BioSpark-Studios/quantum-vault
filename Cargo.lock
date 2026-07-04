@@ -3955,6 +3955,7 @@ dependencies = [
  "mythos",
  "rfd",
  "serde",
+ "serde_json",
  "storefront",
  "thiserror 1.0.69",
  "ureq",
