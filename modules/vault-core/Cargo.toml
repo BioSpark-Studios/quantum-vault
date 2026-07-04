@@ -1,0 +1,14 @@
+[package]
+name = "vault-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+myth-wire = { path = "../../crates/myth-wire" }
+mythos = { path = "../../crates/mythos" }
+qgcp = { path = "../../crates/qgcp" }
+license-core = { path = "../license-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }

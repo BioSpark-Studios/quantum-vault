@@ -1,0 +1,11 @@
+[package]
+name = "storefront"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+myth-wire = { path = "../../crates/myth-wire" }
+mythos = { path = "../../crates/mythos" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

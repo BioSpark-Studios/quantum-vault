@@ -1,0 +1,14 @@
+[package]
+name = "theater"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+egui = []
+
+[dependencies]
+myth-wire = { path = "../myth-wire" }
+mythos = { path = "../mythos" }
+serde = { workspace = true }
+thiserror = { workspace = true }

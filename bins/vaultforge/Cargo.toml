@@ -1,0 +1,26 @@
+[package]
+name = "vaultforge"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "vaultforge"
+path = "src/main.rs"
+
+[dependencies]
+myth-wire = { path = "../../crates/myth-wire" }
+mythos = { path = "../../crates/mythos" }
+qgcp = { path = "../../crates/qgcp" }
+theater = { path = "../../crates/theater" }
+vault-core = { path = "../../modules/vault-core" }
+vault-scrolls = { path = "../../modules/vault-scrolls" }
+vault-glyphs = { path = "../../modules/vault-glyphs" }
+personas = { path = "../../modules/personas" }
+license-core = { path = "../../modules/license-core" }
+storefront = { path = "../../modules/storefront" }
+dj-deck = { path = "../../modules/dj-deck" }
+serde_json = { workspace = true }
+clap = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
