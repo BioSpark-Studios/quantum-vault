@@ -7,6 +7,10 @@ edition = "2021"
 name = "vaultforge"
 path = "src/main.rs"
 
+[features]
+default = []
+ui = ["theater/ui", "dep:eframe"]
+
 [dependencies]
 myth-wire = { path = "../../crates/myth-wire" }
 mythos = { path = "../../crates/mythos" }
@@ -19,8 +23,10 @@ personas = { path = "../../modules/personas" }
 license-core = { path = "../../modules/license-core" }
 storefront = { path = "../../modules/storefront" }
 dj-deck = { path = "../../modules/dj-deck" }
+remix-engine = { path = "../../modules/remix-engine" }
 serde_json = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+eframe = { workspace = true, optional = true }

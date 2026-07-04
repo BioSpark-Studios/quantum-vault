@@ -43,7 +43,9 @@ pub fn load_scrolls(dir: &Path) -> Result<Vec<Scroll>> {
             .with_context(|| format!("reading {}", entry.display()))?;
         let v: Value = serde_json::from_str(&raw)
             .with_context(|| format!("parsing {}", entry.display()))?;
-        let s = &v["scroll"];
+
+        // Support both wrapped {"scroll": {...}} and flat {"scroll_id": ...} formats.
+        let s = if v["scroll"].is_object() { &v["scroll"] } else { &v };
 
         let valid_until = s["valid_until"]
             .as_str()

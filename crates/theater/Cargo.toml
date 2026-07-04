@@ -5,10 +5,12 @@ edition = "2021"
 
 [features]
 default = []
-egui = []
+ui = ["dep:egui", "dep:eframe"]
 
 [dependencies]
 myth-wire = { path = "../myth-wire" }
 mythos = { path = "../mythos" }
 serde = { workspace = true }
 thiserror = { workspace = true }
+egui = { workspace = true, optional = true }
+eframe = { workspace = true, optional = true }

@@ -12,6 +12,7 @@ members = [
     "modules/license-core",
     "modules/storefront",
     "modules/dj-deck",
+    "modules/remix-engine",
     "bins/vaultforge",
 ]
 
@@ -30,3 +31,5 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 clap = { version = "4", features = ["derive"] }
 glob = "0.3"
+egui = "0.28"
+eframe = "0.28"
