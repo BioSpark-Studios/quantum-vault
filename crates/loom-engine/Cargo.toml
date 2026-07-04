@@ -1,0 +1,12 @@
+[package]
+name = "loom-engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+myth-wire = { path = "../myth-wire" }
+mythos = { path = "../mythos" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }

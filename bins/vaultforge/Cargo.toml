@@ -24,7 +24,10 @@ license-core = { path = "../../modules/license-core" }
 storefront = { path = "../../modules/storefront" }
 dj-deck = { path = "../../modules/dj-deck" }
 remix-engine = { path = "../../modules/remix-engine" }
+loom-engine = { path = "../../crates/loom-engine" }
 serde_json = { workspace = true }
+tokio = { workspace = true }
+axum = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }

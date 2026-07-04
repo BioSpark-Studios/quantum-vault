@@ -4,6 +4,7 @@ members = [
     "crates/myth-wire",
     "crates/mythos",
     "crates/qgcp",
+    "crates/loom-engine",
     "crates/theater",
     "modules/vault-core",
     "modules/vault-scrolls",
@@ -33,3 +34,7 @@ clap = { version = "4", features = ["derive"] }
 glob = "0.3"
 egui = "0.28"
 eframe = "0.28"
+axum = "0.7"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
