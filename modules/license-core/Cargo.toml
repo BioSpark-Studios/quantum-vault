@@ -1,0 +1,12 @@
+[package]
+name = "license-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+myth-wire = { path = "../../crates/myth-wire" }
+mythos = { path = "../../crates/mythos" }
+vault-scrolls = { path = "../vault-scrolls" }
+serde = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }

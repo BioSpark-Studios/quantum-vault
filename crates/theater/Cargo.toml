@@ -1,0 +1,18 @@
+[package]
+name = "theater"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+ui = ["dep:egui", "dep:eframe"]
+
+[dependencies]
+myth-wire = { path = "../myth-wire" }
+mythos = { path = "../mythos" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+egui = { workspace = true, optional = true }
+eframe = { workspace = true, optional = true }
+image = { version = "0.25", default-features = false, features = ["png"] }

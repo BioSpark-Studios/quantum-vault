@@ -1,0 +1,15 @@
+[package]
+name = "qgcp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+myth-wire = { path = "../myth-wire" }
+mythos = { path = "../mythos" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+glob = { workspace = true }

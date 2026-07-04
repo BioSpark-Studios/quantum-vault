@@ -1,0 +1,10 @@
+[package]
+name = "personas"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+myth-wire = { path = "../../crates/myth-wire" }
+mythos = { path = "../../crates/mythos" }
+serde = { workspace = true }
+thiserror = { workspace = true }
