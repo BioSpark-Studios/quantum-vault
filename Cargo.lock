@@ -3561,7 +3561,9 @@ dependencies = [
  "myth-wire",
  "mythos",
  "serde",
+ "storefront",
  "thiserror 1.0.69",
+ "user-profile",
 ]
 
 [[package]]
@@ -3900,6 +3902,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "user-profile"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "myth-wire",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "utf8_iter"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3989,6 +4002,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "user-profile",
  "vault-core",
  "vault-glyphs",
  "vault-scrolls",
