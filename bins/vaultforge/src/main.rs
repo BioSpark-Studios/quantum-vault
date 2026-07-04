@@ -97,7 +97,7 @@ fn main() -> Result<()> {
         let faction = cli.theme.as_deref().and_then(Faction::from_str).unwrap_or(Faction::Sylvanid);
         theater::VaultTheme::from_faction(faction)
     };
-    println!("Theme: {:?} · primary:{} bg:{}\n", theme.faction, theme.palette.primary, theme.palette.background);
+    println!("Theme: {:?} · primary:{} bg:{}\n", theme.faction, theme.palette.primary, theme.palette.bg);
 
     // ── Remix Engine ──────────────────────────────────────────────────────────
     let mut remix_lineage = remix_engine::RemixLineage::new();
@@ -218,16 +218,7 @@ fn main() -> Result<()> {
             .map(|l| (l.source_capsule_id.clone(), l.derived_capsule_id.clone(), l.lineage_hash.clone()))
             .collect();
 
-        let app = ControlRoomApp {
-            theme,
-            capsules,
-            selected_capsule: None,
-            persona_list: persona_data,
-            plugin_slots,
-            remix_links,
-            crossfader: 0.5,
-            toggled_plugins: Vec::new(),
-        };
+        let app = ControlRoomApp::new(theme, capsules, persona_data, plugin_slots, remix_links);
 
         let options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()

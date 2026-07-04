@@ -29,12 +29,16 @@ pub fn load_skin(path: &Path) -> Result<VaultTheme> {
 
     let palette = if width >= 5 {
         // Convention: read the first 5 pixels of the top row.
+        let primary   = rgba_to_hex(img.get_pixel(0, 0));
+        let secondary = rgba_to_hex(img.get_pixel(1, 0));
+        let bg        = rgba_to_hex(img.get_pixel(2, 0));
+        let accent    = rgba_to_hex(img.get_pixel(3, 0));
+        let text      = rgba_to_hex(img.get_pixel(4, 0));
         ThemePalette {
-            primary:    rgba_to_hex(img.get_pixel(0, 0)),
-            secondary:  rgba_to_hex(img.get_pixel(1, 0)),
-            background: rgba_to_hex(img.get_pixel(2, 0)),
-            accent:     rgba_to_hex(img.get_pixel(3, 0)),
-            text:       rgba_to_hex(img.get_pixel(4, 0)),
+            surface: bg.clone(),
+            border:  secondary.clone(),
+            glow:    format!("{}60", accent.trim_start_matches('#')),
+            bg, primary, secondary, accent, text,
         }
     } else {
         // Fallback: compute mean colour per quintic bucket across all pixels.
@@ -58,12 +62,16 @@ pub fn load_skin(path: &Path) -> Result<VaultTheme> {
             })
             .collect();
 
+        let primary   = rgba_to_hex(buckets[0]);
+        let secondary = rgba_to_hex(buckets[1]);
+        let bg        = rgba_to_hex(buckets[2]);
+        let accent    = rgba_to_hex(buckets[3]);
+        let text      = rgba_to_hex(buckets[4]);
         ThemePalette {
-            primary:    rgba_to_hex(buckets[0]),
-            secondary:  rgba_to_hex(buckets[1]),
-            background: rgba_to_hex(buckets[2]),
-            accent:     rgba_to_hex(buckets[3]),
-            text:       rgba_to_hex(buckets[4]),
+            surface: bg.clone(),
+            border:  secondary.clone(),
+            glow:    format!("{}60", accent.trim_start_matches('#')),
+            bg, primary, secondary, accent, text,
         }
     };
 
@@ -71,6 +79,7 @@ pub fn load_skin(path: &Path) -> Result<VaultTheme> {
         faction: None,
         palette,
         skin_png_path: Some(path.to_string_lossy().into_owned()),
+        theme_index: 0,
     })
 }
 
@@ -103,7 +112,7 @@ mod tests {
         let theme = load_skin(&path).unwrap();
         assert_eq!(theme.palette.primary, "#FF0000");
         assert_eq!(theme.palette.secondary, "#00FF00");
-        assert_eq!(theme.palette.background, "#0000FF");
+        assert_eq!(theme.palette.bg, "#0000FF");
         assert_eq!(theme.palette.accent, "#FFFF00");
         assert_eq!(theme.palette.text, "#FFFFFF");
         assert!(theme.skin_png_path.is_some());
