@@ -180,8 +180,12 @@ fn main() -> Result<()> {
             sf.publish_tome(&scroll.title, &scroll.bound_persona, &scroll.title);
         }
 
-        let state = Arc::new(Mutex::new(sf));
-        let app = storefront::api::router(state);
+        let app_state = storefront::api::AppState {
+            store: Arc::new(Mutex::new(sf)),
+            users: Arc::new(Mutex::new(storefront::UserStore::default())),
+            vault_dir: cli.vault.clone(),
+        };
+        let app = storefront::api::router(app_state);
         let addr = format!("0.0.0.0:{port}");
 
         let rt = tokio::runtime::Runtime::new()?;

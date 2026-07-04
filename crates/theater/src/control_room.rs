@@ -1,8 +1,8 @@
 use egui::{Color32, Frame, Margin, Response, RichText, Rounding, ScrollArea, Stroke, Ui, Vec2};
 use mythos::capsule::{VaultCapsule, VaultTier};
 use mythos::faction::Faction;
-use storefront::store::{Blueprint, Collection, Storefront};
-use user_profile::{CollectionManager, ProfileManager, UserProfile};
+use storefront::store::{Blueprint, Collection};
+use user_profile::UserProfile;
 
 use crate::theme::{ThemePalette, VaultTheme, THEMES};
 
@@ -128,8 +128,10 @@ pub enum NavTab {
     Lineage,
     Collections,
     Blueprints,
+    Upload,
     DjDeck,
     Profile,
+    Server,
     Settings,
 }
 
@@ -142,8 +144,10 @@ impl NavTab {
             NavTab::Lineage      => "🧬",
             NavTab::Collections  => "◈",
             NavTab::Blueprints   => "⬢",
+            NavTab::Upload       => "↑",
             NavTab::DjDeck       => "🎵",
             NavTab::Profile      => "◎",
+            NavTab::Server       => "⇆",
             NavTab::Settings     => "⚙",
         }
     }
@@ -155,19 +159,24 @@ impl NavTab {
             NavTab::Lineage      => "Lineage",
             NavTab::Collections  => "My Lists",
             NavTab::Blueprints   => "Blueprints",
+            NavTab::Upload       => "Upload",
             NavTab::DjDeck       => "DJ Deck",
             NavTab::Profile      => "Profile",
+            NavTab::Server       => "Server",
             NavTab::Settings     => "Settings",
         }
     }
-    fn all() -> [NavTab; 9] {
+    fn all() -> [NavTab; 11] {
         [
             NavTab::Capsules, NavTab::Personas, NavTab::Plugins, NavTab::Lineage,
-            NavTab::Collections, NavTab::Blueprints, NavTab::DjDeck,
-            NavTab::Profile, NavTab::Settings,
+            NavTab::Collections, NavTab::Blueprints, NavTab::Upload,
+            NavTab::DjDeck, NavTab::Profile, NavTab::Server, NavTab::Settings,
         ]
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ServerMode { Login, Register }
 
 // ── ControlRoomApp ────────────────────────────────────────────────────────────
 
@@ -203,6 +212,26 @@ pub struct ControlRoomApp {
     // Profile edit state
     edit_display_name: String,
     edit_avatar: String,
+    // Server / auth state
+    server_url: String,
+    server_token: Option<String>,
+    server_username: String,
+    server_credits: u32,
+    server_purchased: Vec<String>,
+    login_username: String,
+    login_password: String,
+    reg_username: String,
+    reg_display: String,
+    reg_password: String,
+    server_status_msg: String,
+    server_mode: ServerMode,
+    // Upload state
+    upload_path: Option<std::path::PathBuf>,
+    upload_thumb_path: Option<std::path::PathBuf>,
+    upload_status: String,
+    upload_in_progress: bool,
+    // Checkout feedback
+    checkout_msg: String,
 }
 
 impl ControlRoomApp {
@@ -244,6 +273,23 @@ impl ControlRoomApp {
             storefront_collections,
             edit_display_name,
             edit_avatar,
+            server_url: "http://localhost:8080".to_string(),
+            server_token: None,
+            server_username: String::new(),
+            server_credits: 0,
+            server_purchased: Vec::new(),
+            login_username: String::new(),
+            login_password: String::new(),
+            reg_username: String::new(),
+            reg_display: String::new(),
+            reg_password: String::new(),
+            server_status_msg: String::new(),
+            server_mode: ServerMode::Login,
+            upload_path: None,
+            upload_thumb_path: None,
+            upload_status: String::new(),
+            upload_in_progress: false,
+            checkout_msg: String::new(),
         }
     }
 }
@@ -338,8 +384,10 @@ impl eframe::App for ControlRoomApp {
                     NavTab::Lineage      => self.show_lineage(ui, &p),
                     NavTab::Collections  => self.show_collections(ui, &p),
                     NavTab::Blueprints   => self.show_blueprints(ui, &p),
+                    NavTab::Upload       => self.show_upload(ui, &p),
                     NavTab::DjDeck       => self.show_dj_deck(ui, &p),
                     NavTab::Profile      => self.show_profile(ui, &p),
+                    NavTab::Server       => self.show_server(ui, &p),
                     NavTab::Settings     => self.show_settings(ui, &p),
                 }
             });
@@ -714,14 +762,29 @@ impl ControlRoomApp {
                     ui.painter().text(row_rect.min + Vec2::new(66.0, 30.0), egui::Align2::LEFT_CENTER, &bp.description[..bp.description.len().min(50)], egui::FontId::proportional(9.0), hex_color(&p.secondary));
 
                     // Price chip
-                    let price_str = if bp.price_credits == 0 { "Free".to_string() } else { format!("⬡ {}", bp.price_credits) };
-                    let price_c = if bp.price_credits == 0 { Color32::from_rgb(76, 175, 80) } else { hex_color(&p.accent) };
-                    ui.painter().text(row_rect.max - Vec2::new(12.0, 22.0), egui::Align2::RIGHT_CENTER, &price_str, egui::FontId::proportional(11.0), price_c);
+                    let already_owned = self.server_purchased.contains(&bp.id);
+                    let price_str = if already_owned { "✓ Owned".to_string() } else if bp.price_credits == 0 { "Free".to_string() } else { format!("⬡ {}", bp.price_credits) };
+                    let price_c = if already_owned { Color32::from_rgb(76, 210, 80) } else if bp.price_credits == 0 { Color32::from_rgb(76, 175, 80) } else { hex_color(&p.accent) };
+                    ui.painter().text(row_rect.max - Vec2::new(12.0, 30.0), egui::Align2::RIGHT_CENTER, &price_str, egui::FontId::proportional(11.0), price_c);
 
                     // Tags
                     let tag_str = bp.tags.iter().map(|t| format!("#{t}")).collect::<Vec<_>>().join(" ");
                     if !tag_str.is_empty() {
-                        ui.painter().text(row_rect.max - Vec2::new(12.0, 10.0), egui::Align2::RIGHT_CENTER, &tag_str, egui::FontId::proportional(8.0), hex_color(&p.secondary));
+                        ui.painter().text(row_rect.max - Vec2::new(12.0, 14.0), egui::Align2::RIGHT_CENTER, &tag_str, egui::FontId::proportional(8.0), hex_color(&p.secondary));
+                    }
+
+                    // Buy button (only if authenticated and not free and not owned)
+                    if self.server_token.is_some() && bp.price_credits > 0 && !already_owned {
+                        let buy_rect = egui::Rect::from_min_size(row_rect.min + Vec2::new(row_rect.width() - 50.0, 4.0), Vec2::new(44.0, 16.0));
+                        let buy_resp = ui.allocate_rect(buy_rect, egui::Sense::click());
+                        let buy_hover_t = ui.ctx().animate_bool(buy_resp.id, buy_resp.hovered());
+                        let buy_fill = lerp_color(hex_color(&p.accent).gamma_multiply(0.7), hex_color(&p.accent), buy_hover_t);
+                        ui.painter().rect_filled(buy_rect, 4.0, buy_fill);
+                        ui.painter().text(buy_rect.center(), egui::Align2::CENTER_CENTER, "Buy", egui::FontId::proportional(9.0), hex_color(&p.bg));
+                        if buy_resp.clicked() {
+                            let bp_id = bp.id.clone();
+                            self.checkout_msg = self.do_checkout(&bp_id);
+                        }
                     }
                 }
             });
@@ -742,7 +805,40 @@ impl ControlRoomApp {
                     ui.add_space(4.0);
                 }
             }
+
+            // Checkout feedback
+            if !self.checkout_msg.is_empty() {
+                ui.add_space(8.0);
+                let c = if self.checkout_msg.starts_with("✓") { Color32::from_rgb(76, 210, 80) } else { Color32::from_rgb(220, 80, 80) };
+                ui.label(RichText::new(&self.checkout_msg).color(c));
+            }
         });
+    }
+
+    fn do_checkout(&mut self, blueprint_id: &str) -> String {
+        #[cfg(feature = "ui")]
+        {
+            let token = match &self.server_token {
+                Some(t) => t.clone(),
+                None => return "✗ Not authenticated".to_string(),
+            };
+            let url = format!("{}/checkout/{}", self.server_url.trim_end_matches('/'), blueprint_id);
+            let bp_id = blueprint_id.to_string();
+            let result = (|| -> Result<String, String> {
+                let resp = ureq::post(&url)
+                    .set("Authorization", &format!("Bearer {token}"))
+                    .call()
+                    .map_err(|e| format!("checkout failed: {e}"))?;
+                let json: serde_json::Value = resp.into_json().map_err(|e| e.to_string())?;
+                let remaining = json["remaining_credits"].as_u64().unwrap_or(0) as u32;
+                self.server_credits = remaining;
+                self.server_purchased.push(bp_id);
+                Ok(format!("✓ Purchased!  Remaining credits: {remaining} ⬡"))
+            })();
+            result.unwrap_or_else(|e| format!("✗ {e}"))
+        }
+        #[cfg(not(feature = "ui"))]
+        { "not available".to_string() }
     }
 
     fn show_dj_deck(&mut self, ui: &mut Ui, p: &ThemePalette) {
@@ -892,6 +988,292 @@ impl ControlRoomApp {
                 ui.label(RichText::new("Double-click to remove a favorite.").color(hex_color(&p.secondary)).small().italics());
             }
         });
+    }
+
+    fn show_server(&mut self, ui: &mut Ui, p: &ThemePalette) {
+        let is_authed = self.server_token.is_some();
+        card_frame(p).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                section_heading(ui, "Server Connection", p);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let (dot_c, dot_label) = if is_authed {
+                        (Color32::from_rgb(76, 210, 80), format!("● Online  —  {} ⬡ credits", self.server_credits))
+                    } else {
+                        (Color32::from_gray(100), "○ Not connected".to_string())
+                    };
+                    ui.label(RichText::new(dot_label).color(dot_c).small());
+                });
+            });
+
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("Server URL").color(hex_color(&p.secondary)).small());
+                ui.add(egui::TextEdit::singleline(&mut self.server_url).desired_width(240.0).text_color(hex_color(&p.text)));
+            });
+            ui.add_space(10.0);
+
+            if is_authed {
+                // Logged-in view
+                ui.label(RichText::new(format!("Signed in as  {}", self.server_username)).color(hex_color(&p.primary)).strong());
+                ui.label(RichText::new(format!("Credits: {} ⬡", self.server_credits)).color(hex_color(&p.accent)));
+                ui.add_space(8.0);
+                ui.label(RichText::new(format!("Purchased blueprints: {}", self.server_purchased.len())).color(hex_color(&p.secondary)).small());
+                ui.add_space(12.0);
+                let sign_out = ui.button(RichText::new("Sign out").color(Color32::from_rgb(220, 80, 80)));
+                hover_glow(ui, &sign_out, p);
+                if sign_out.clicked() {
+                    self.server_token = None;
+                    self.server_username.clear();
+                    self.server_credits = 0;
+                    self.server_purchased.clear();
+                    self.server_status_msg = "Signed out.".to_string();
+                }
+            } else {
+                // Tab switcher: Login / Register
+                ui.horizontal(|ui| {
+                    let login_active = self.server_mode == ServerMode::Login;
+                    let l_btn = ui.selectable_label(login_active, RichText::new("Sign In").color(if login_active { hex_color(&p.accent) } else { hex_color(&p.secondary) }));
+                    if l_btn.clicked() { self.server_mode = ServerMode::Login; }
+                    ui.add_space(12.0);
+                    let r_btn = ui.selectable_label(!login_active, RichText::new("Create Account").color(if !login_active { hex_color(&p.accent) } else { hex_color(&p.secondary) }));
+                    if r_btn.clicked() { self.server_mode = ServerMode::Register; }
+                });
+                ui.add_space(10.0);
+
+                egui::Grid::new("auth_form").num_columns(2).spacing(Vec2::new(10.0, 8.0)).show(ui, |ui| {
+                    match self.server_mode {
+                        ServerMode::Login => {
+                            ui.label(RichText::new("Username").color(hex_color(&p.secondary)).small());
+                            ui.add(egui::TextEdit::singleline(&mut self.login_username).desired_width(200.0).text_color(hex_color(&p.text)));
+                            ui.end_row();
+                            ui.label(RichText::new("Password").color(hex_color(&p.secondary)).small());
+                            ui.add(egui::TextEdit::singleline(&mut self.login_password).desired_width(200.0).password(true).text_color(hex_color(&p.text)));
+                            ui.end_row();
+                        }
+                        ServerMode::Register => {
+                            ui.label(RichText::new("Username").color(hex_color(&p.secondary)).small());
+                            ui.add(egui::TextEdit::singleline(&mut self.reg_username).desired_width(200.0).text_color(hex_color(&p.text)));
+                            ui.end_row();
+                            ui.label(RichText::new("Display name").color(hex_color(&p.secondary)).small());
+                            ui.add(egui::TextEdit::singleline(&mut self.reg_display).desired_width(200.0).text_color(hex_color(&p.text)));
+                            ui.end_row();
+                            ui.label(RichText::new("Password").color(hex_color(&p.secondary)).small());
+                            ui.add(egui::TextEdit::singleline(&mut self.reg_password).desired_width(200.0).password(true).text_color(hex_color(&p.text)));
+                            ui.end_row();
+                        }
+                    }
+                });
+
+                ui.add_space(10.0);
+                let btn_label = if self.server_mode == ServerMode::Login { "Sign In" } else { "Create Account" };
+                let submit = ui.button(RichText::new(btn_label).color(hex_color(&p.accent)).strong());
+                hover_glow(ui, &submit, p);
+                if submit.clicked() {
+                    let url = self.server_url.trim_end_matches('/').to_string();
+                    match self.server_mode {
+                        ServerMode::Login => {
+                            let body = serde_json::json!({
+                                "username": self.login_username,
+                                "password": self.login_password,
+                            });
+                            self.server_status_msg = self.http_post_auth(&format!("{url}/auth/login"), &body);
+                        }
+                        ServerMode::Register => {
+                            let body = serde_json::json!({
+                                "username": self.reg_username,
+                                "display_name": self.reg_display,
+                                "password": self.reg_password,
+                            });
+                            self.server_status_msg = self.http_post_auth(&format!("{url}/auth/register"), &body);
+                        }
+                    }
+                }
+            }
+
+            if !self.server_status_msg.is_empty() {
+                ui.add_space(8.0);
+                let msg_color = if self.server_status_msg.starts_with("✓") {
+                    Color32::from_rgb(76, 210, 80)
+                } else {
+                    Color32::from_rgb(220, 80, 80)
+                };
+                ui.label(RichText::new(&self.server_status_msg).color(msg_color).small());
+            }
+        });
+    }
+
+    fn http_post_auth(&mut self, url: &str, body: &serde_json::Value) -> String {
+        // Synchronous HTTP using ureq — simple, no async needed in egui
+        #[cfg(feature = "ui")]
+        {
+            let result = (|| -> Result<String, String> {
+                let resp = ureq::post(url)
+                    .set("Content-Type", "application/json")
+                    .send_string(&body.to_string())
+                    .map_err(|e| format!("request failed: {e}"))?;
+                let json: serde_json::Value = resp.into_json().map_err(|e| e.to_string())?;
+                if let Some(token) = json["token"].as_str() {
+                    self.server_token = Some(token.to_string());
+                    self.server_username = json["username"].as_str().unwrap_or("").to_string();
+                    self.server_credits = json["credits"].as_u64().unwrap_or(0) as u32;
+                }
+                Ok("✓ Authenticated".to_string())
+            })();
+            result.unwrap_or_else(|e| format!("✗ {e}"))
+        }
+        #[cfg(not(feature = "ui"))]
+        { format!("not available") }
+    }
+
+    fn show_upload(&mut self, ui: &mut Ui, p: &ThemePalette) {
+        card_frame(p).show(ui, |ui| {
+            section_heading(ui, "Upload Capsule", p);
+
+            if self.server_token.is_none() {
+                ui.label(RichText::new("⚠  Sign in via the Server tab first to upload capsules.").color(Color32::from_rgb(255, 180, 0)));
+                return;
+            }
+
+            ui.label(RichText::new("Select a .capsule.yaml file to register a new capsule into the vault.").color(hex_color(&p.secondary)).small());
+            ui.add_space(10.0);
+
+            // File picker buttons
+            ui.horizontal(|ui| {
+                let pick_btn = ui.button(RichText::new("📂  Choose Capsule YAML").color(hex_color(&p.primary)));
+                hover_glow(ui, &pick_btn, p);
+                if pick_btn.clicked() {
+                    #[cfg(feature = "ui")]
+                    if let Some(path) = rfd::FileDialog::new()
+                        .add_filter("Capsule YAML", &["yaml", "yml"])
+                        .pick_file()
+                    {
+                        self.upload_path = Some(path);
+                        self.upload_status.clear();
+                    }
+                }
+
+                ui.add_space(8.0);
+                let thumb_btn = ui.button(RichText::new("🖼  Choose Thumbnail PNG").color(hex_color(&p.secondary)));
+                hover_glow(ui, &thumb_btn, p);
+                if thumb_btn.clicked() {
+                    #[cfg(feature = "ui")]
+                    if let Some(path) = rfd::FileDialog::new()
+                        .add_filter("PNG Image", &["png"])
+                        .pick_file()
+                    {
+                        self.upload_thumb_path = Some(path);
+                    }
+                }
+            });
+
+            ui.add_space(8.0);
+
+            // Show selected files
+            if let Some(ref path) = self.upload_path {
+                let fname = path.file_name().unwrap_or_default().to_string_lossy();
+                ui.label(RichText::new(format!("Capsule: {fname}")).color(hex_color(&p.text)));
+            } else {
+                ui.label(RichText::new("No capsule file selected").color(hex_color(&p.secondary)).italics());
+            }
+            if let Some(ref path) = self.upload_thumb_path {
+                let fname = path.file_name().unwrap_or_default().to_string_lossy();
+                ui.label(RichText::new(format!("Thumbnail: {fname}")).color(hex_color(&p.text)));
+            }
+
+            ui.add_space(12.0);
+
+            let can_upload = self.upload_path.is_some() && !self.upload_in_progress;
+            let upload_btn = ui.add_enabled(can_upload, egui::Button::new(RichText::new("  ↑  Upload  ").color(hex_color(&p.bg)).strong()).fill(hex_color(&p.accent))));
+            hover_glow(ui, &upload_btn, p);
+            if upload_btn.clicked() {
+                self.do_upload();
+            }
+
+            if !self.upload_status.is_empty() {
+                ui.add_space(8.0);
+                let msg_color = if self.upload_status.starts_with("✓") {
+                    Color32::from_rgb(76, 210, 80)
+                } else {
+                    Color32::from_rgb(220, 80, 80)
+                };
+                ui.label(RichText::new(&self.upload_status).color(msg_color));
+            }
+
+            ui.add_space(20.0);
+            ui.separator();
+            ui.add_space(8.0);
+            section_heading(ui, "Upload Guide", p);
+            let guide = [
+                ("id",         "Unique identifier, e.g. cap-my-creation-001"),
+                ("persona",    "Persona name from the registry"),
+                ("tier",       "Free · Studio · Mythic"),
+                ("remixable",  "true or false"),
+                ("origin",     "Your vault or creator handle"),
+                ("scroll_ref", "ID of the scroll this capsule is bound to"),
+            ];
+            egui::Grid::new("guide_grid").num_columns(2).striped(true).show(ui, |ui| {
+                for (field, desc) in &guide {
+                    ui.label(RichText::new(*field).color(hex_color(&p.accent)).monospace().small());
+                    ui.label(RichText::new(*desc).color(hex_color(&p.secondary)).small());
+                    ui.end_row();
+                }
+            });
+        });
+    }
+
+    fn do_upload(&mut self) {
+        #[cfg(feature = "ui")]
+        {
+            let path = match &self.upload_path {
+                Some(p) => p.clone(),
+                None => return,
+            };
+            let token = match &self.server_token {
+                Some(t) => t.clone(),
+                None => { self.upload_status = "✗ Not authenticated".to_string(); return; }
+            };
+            let url = format!("{}/capsules/upload", self.server_url.trim_end_matches('/'));
+            let thumb_path = self.upload_thumb_path.clone();
+
+            self.upload_in_progress = true;
+            let result = (|| -> Result<String, String> {
+                let yaml_bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+                let fname = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+
+                // Build multipart using ureq + manual boundary
+                let boundary = "VaultForge-Upload-Boundary-8675309";
+                let mut body = Vec::new();
+
+                // capsule part
+                let header = format!("--{boundary}\r\nContent-Disposition: form-data; name=\"capsule\"; filename=\"{fname}\"\r\nContent-Type: application/octet-stream\r\n\r\n");
+                body.extend_from_slice(header.as_bytes());
+                body.extend_from_slice(&yaml_bytes);
+                body.extend_from_slice(b"\r\n");
+
+                // thumbnail part (optional)
+                if let Some(tp) = &thumb_path {
+                    if let Ok(png) = std::fs::read(tp) {
+                        let tfname = tp.file_name().unwrap_or_default().to_string_lossy();
+                        let th = format!("--{boundary}\r\nContent-Disposition: form-data; name=\"thumbnail\"; filename=\"{tfname}\"\r\nContent-Type: image/png\r\n\r\n");
+                        body.extend_from_slice(th.as_bytes());
+                        body.extend_from_slice(&png);
+                        body.extend_from_slice(b"\r\n");
+                    }
+                }
+                body.extend_from_slice(format!("--{boundary}--\r\n").as_bytes());
+
+                let resp = ureq::post(&url)
+                    .set("Authorization", &format!("Bearer {token}"))
+                    .set("Content-Type", &format!("multipart/form-data; boundary={boundary}"))
+                    .send_bytes(&body)
+                    .map_err(|e| format!("upload failed: {e}"))?;
+
+                let json: serde_json::Value = resp.into_json().map_err(|e| e.to_string())?;
+                Ok(format!("✓ Uploaded — lineage: {}", &json["lineage_hash"].as_str().unwrap_or("?")[..12.min(json["lineage_hash"].as_str().unwrap_or("").len())]))
+            })();
+
+            self.upload_in_progress = false;
+            self.upload_status = result.unwrap_or_else(|e| format!("✗ {e}"));
+        }
     }
 
     fn show_settings(&mut self, ui: &mut Ui, p: &ThemePalette) {
