@@ -180,8 +180,12 @@ fn main() -> Result<()> {
             sf.publish_tome(&scroll.title, &scroll.bound_persona, &scroll.title);
         }
 
-        let state = Arc::new(Mutex::new(sf));
-        let app = storefront::api::router(state);
+        let app_state = storefront::api::AppState {
+            store: Arc::new(Mutex::new(sf)),
+            users: Arc::new(Mutex::new(storefront::UserStore::default())),
+            vault_dir: cli.vault.clone(),
+        };
+        let app = storefront::api::router(app_state);
         let addr = format!("0.0.0.0:{port}");
 
         let rt = tokio::runtime::Runtime::new()?;
@@ -202,7 +206,9 @@ fn main() -> Result<()> {
     // ── egui UI ───────────────────────────────────────────────────────────────
     #[cfg(feature = "ui")]
     {
+        use storefront::store::Storefront as SF;
         use theater::control_room::ControlRoomApp;
+        use user_profile::{CollectionManager, ProfileManager};
 
         let persona_list = personas::canonical_personas();
         let plugin_slots: Vec<(String, String, bool)> = core
@@ -218,7 +224,25 @@ fn main() -> Result<()> {
             .map(|l| (l.source_capsule_id.clone(), l.derived_capsule_id.clone(), l.lineage_hash.clone()))
             .collect();
 
-        let app = ControlRoomApp::new(theme, capsules, persona_data, plugin_slots, remix_links);
+        // Profile + collections
+        let profile_mgr = ProfileManager::load(&cli.vault)
+            .unwrap_or_else(|e| { eprintln!("profile load: {e}"); ProfileManager { profile: Default::default(), path: cli.vault.join(".vaultforge/profile.json") } });
+        let col_mgr = CollectionManager::load(&cli.vault)
+            .unwrap_or_else(|e| { eprintln!("collections load: {e}"); CollectionManager { collections: vec![], path: cli.vault.join(".vaultforge/collections.json") } });
+
+        // Seed storefront blueprints for the UI (no server needed)
+        let mut sf = SF::new();
+        for cap in &capsules {
+            sf.list_blueprint(cap, if cap.tier == mythos::capsule::VaultTier::Free { 0 } else { 50 }, format!("Auto-listed: {}", cap.persona));
+        }
+        let blueprints: Vec<_> = sf.all_blueprints().into_iter().cloned().collect();
+        let sf_collections: Vec<_> = sf.collections.values().cloned().collect();
+
+        let app = ControlRoomApp::new(
+            theme, capsules, persona_data, plugin_slots, remix_links,
+            profile_mgr.profile, col_mgr.collections,
+            blueprints, sf_collections,
+        );
 
         let options = eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()

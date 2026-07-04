@@ -5,14 +5,19 @@ edition = "2021"
 
 [features]
 default = []
-ui = ["dep:egui", "dep:eframe"]
+ui = ["dep:egui", "dep:eframe", "dep:rfd", "dep:ureq"]
 
 [dependencies]
 myth-wire = { path = "../myth-wire" }
 mythos = { path = "../mythos" }
+user-profile = { path = "../../modules/user-profile" }
+storefront = { path = "../../modules/storefront" }
 serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 egui = { workspace = true, optional = true }
 eframe = { workspace = true, optional = true }
+rfd = { workspace = true, optional = true }
+ureq = { workspace = true, optional = true }
 image = { version = "0.25", default-features = false, features = ["png"] }
