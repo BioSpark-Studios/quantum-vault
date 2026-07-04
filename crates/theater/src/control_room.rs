@@ -738,6 +738,7 @@ impl ControlRoomApp {
             }
 
             let query = self.search_blueprints.clone();
+            let mut clicked_bp_id: Option<String> = None;
             ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
                 for bp in &self.blueprints {
                     let haystack = format!("{} {} {} {}", bp.persona, bp.tier, bp.description, bp.tags.join(" "));
@@ -782,12 +783,14 @@ impl ControlRoomApp {
                         ui.painter().rect_filled(buy_rect, 4.0, buy_fill);
                         ui.painter().text(buy_rect.center(), egui::Align2::CENTER_CENTER, "Buy", egui::FontId::proportional(9.0), hex_color(&p.bg));
                         if buy_resp.clicked() {
-                            let bp_id = bp.id.clone();
-                            self.checkout_msg = self.do_checkout(&bp_id);
+                            clicked_bp_id = Some(bp.id.clone());
                         }
                     }
                 }
             });
+            if let Some(bp_id) = clicked_bp_id {
+                self.checkout_msg = self.do_checkout(&bp_id);
+            }
 
             // Storefront collections summary
             if !self.storefront_collections.is_empty() {
@@ -1182,7 +1185,7 @@ impl ControlRoomApp {
             ui.add_space(12.0);
 
             let can_upload = self.upload_path.is_some() && !self.upload_in_progress;
-            let upload_btn = ui.add_enabled(can_upload, egui::Button::new(RichText::new("  ↑  Upload  ").color(hex_color(&p.bg)).strong()).fill(hex_color(&p.accent))));
+            let upload_btn = ui.add_enabled(can_upload, egui::Button::new(RichText::new("  ↑  Upload  ").color(hex_color(&p.bg)).strong()).fill(hex_color(&p.accent)));
             hover_glow(ui, &upload_btn, p);
             if upload_btn.clicked() {
                 self.do_upload();
