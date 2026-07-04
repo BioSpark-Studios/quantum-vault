@@ -4446,6 +4446,7 @@ dependencies = [
  "clap",
  "dj-deck",
  "eframe",
+ "egui",
  "license-core",
  "loom-engine",
  "myth-wire",
