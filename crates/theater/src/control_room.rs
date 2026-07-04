@@ -2,6 +2,7 @@ use egui::{Color32, Frame, Margin, Response, RichText, Rounding, ScrollArea, Str
 use mythos::capsule::{VaultCapsule, VaultTier};
 use mythos::faction::Faction;
 use storefront::store::{Blueprint, Collection};
+use eidolon_rack::{EidolonRack, ModuleKind, PsuState};
 use user_profile::UserProfile;
 
 use crate::theme::{ThemePalette, VaultTheme, THEMES};
@@ -130,6 +131,7 @@ pub enum NavTab {
     Blueprints,
     Upload,
     DjDeck,
+    Rack,
     Profile,
     Server,
     Settings,
@@ -146,6 +148,7 @@ impl NavTab {
             NavTab::Blueprints   => "⬢",
             NavTab::Upload       => "↑",
             NavTab::DjDeck       => "🎵",
+            NavTab::Rack         => "🎛",
             NavTab::Profile      => "◎",
             NavTab::Server       => "⇆",
             NavTab::Settings     => "⚙",
@@ -161,16 +164,17 @@ impl NavTab {
             NavTab::Blueprints   => "Blueprints",
             NavTab::Upload       => "Upload",
             NavTab::DjDeck       => "DJ Deck",
+            NavTab::Rack         => "Rack",
             NavTab::Profile      => "Profile",
             NavTab::Server       => "Server",
             NavTab::Settings     => "Settings",
         }
     }
-    fn all() -> [NavTab; 11] {
+    fn all() -> [NavTab; 12] {
         [
             NavTab::Capsules, NavTab::Personas, NavTab::Plugins, NavTab::Lineage,
             NavTab::Collections, NavTab::Blueprints, NavTab::Upload,
-            NavTab::DjDeck, NavTab::Profile, NavTab::Server, NavTab::Settings,
+            NavTab::DjDeck, NavTab::Rack, NavTab::Profile, NavTab::Server, NavTab::Settings,
         ]
     }
 }
@@ -232,6 +236,11 @@ pub struct ControlRoomApp {
     upload_in_progress: bool,
     // Checkout feedback
     checkout_msg: String,
+    // Eidolon Synthesis Rack
+    rack: EidolonRack,
+    rack_running: bool,
+    rack_selected_slot: Option<usize>,
+    rack_skin: Option<crate::assets::RackSkin>,
 }
 
 impl ControlRoomApp {
@@ -290,6 +299,10 @@ impl ControlRoomApp {
             upload_status: String::new(),
             upload_in_progress: false,
             checkout_msg: String::new(),
+            rack: EidolonRack::new(),
+            rack_running: false,
+            rack_selected_slot: None,
+            rack_skin: None,
         }
     }
 }
@@ -301,6 +314,33 @@ impl eframe::App for ControlRoomApp {
 
         if self.deck_playing {
             self.disc_rotation += 0.012;
+            ctx.request_repaint();
+        }
+
+        // Lazy-load rack art skins on first frame.
+        if self.rack_skin.is_none() {
+            self.rack_skin = Some(crate::assets::RackSkin::load(ctx, std::path::Path::new(".")));
+        }
+
+        // Advance the Eidolon Rack simulation while running.
+        if self.rack_running {
+            let dt = ctx.input(|i| i.stable_dt).min(0.05);
+            match self.rack.tick(1.0) {
+                Ok(out) => {
+                    // Thermal dynamics: heat rises with signal, pump sheds it.
+                    self.rack.heat_sink.chassis_temp += out.abs() * dt * 6.0;
+                    if self.rack.heat_sink.pump_active {
+                        self.rack.heat_sink.chassis_temp -= 9.0 * dt;
+                    }
+                }
+                Err(_) => { self.rack_running = false; }
+            }
+            self.rack.update_telemetry();
+            ctx.request_repaint();
+        } else if self.rack.heat_sink.chassis_temp > 32.0 {
+            let dt = ctx.input(|i| i.stable_dt).min(0.05);
+            self.rack.heat_sink.chassis_temp -= 4.0 * dt;
+            self.rack.update_telemetry();
             ctx.request_repaint();
         }
 
@@ -386,6 +426,7 @@ impl eframe::App for ControlRoomApp {
                     NavTab::Blueprints   => self.show_blueprints(ui, &p),
                     NavTab::Upload       => self.show_upload(ui, &p),
                     NavTab::DjDeck       => self.show_dj_deck(ui, &p),
+                    NavTab::Rack         => self.show_rack(ui, &p),
                     NavTab::Profile      => self.show_profile(ui, &p),
                     NavTab::Server       => self.show_server(ui, &p),
                     NavTab::Settings     => self.show_settings(ui, &p),
@@ -905,6 +946,161 @@ impl ControlRoomApp {
                     if self.deck_playing { ui.ctx().request_repaint(); }
                 });
             });
+        });
+    }
+
+    fn show_rack(&mut self, ui: &mut Ui, p: &ThemePalette) {
+        card_frame(p).show(ui, |ui| {
+            section_heading(ui, "Eidolon Synthesis Rack  ◈  192.0 kHz", p);
+
+            // ── Header: clock sync, run toggle, status pill ──────────────────
+            let psu = self.rack.power.state();
+            let temp = self.rack.heat_sink.chassis_temp;
+            let (status_label, status_c) = if temp >= 95.0 || psu == PsuState::Critical {
+                ("THERMAL CRITICAL", Color32::from_rgb(255, 70, 70))
+            } else if temp >= 75.0 || psu == PsuState::Degraded {
+                ("THROTTLING", Color32::from_rgb(255, 185, 40))
+            } else {
+                ("SYSTEM NOMINAL", Color32::from_rgb(60, 210, 220))
+            };
+
+            ui.horizontal(|ui| {
+                let sync = if self.rack_running { "◉ SYNC" } else { "○ IDLE" };
+                ui.label(RichText::new(format!("Master Clock  {sync}")).color(hex_color(&p.secondary)).small());
+                ui.add_space(12.0);
+                let btn_label = if self.rack_running { "  ■  Stop  " } else { "  ▶  Start  " };
+                let run = ui.button(RichText::new(btn_label).color(hex_color(&p.bg)).strong());
+                hover_glow(ui, &run, p);
+                if run.clicked() { self.rack_running = !self.rack_running; }
+
+                ui.add_space(16.0);
+                let (pill, _) = ui.allocate_exact_size(Vec2::new(150.0, 22.0), egui::Sense::hover());
+                ui.painter().rect_filled(pill, 11.0, status_c.gamma_multiply(0.22));
+                ui.painter().rect_stroke(pill, 11.0, Stroke::new(1.0, status_c));
+                ui.painter().text(pill.center(), egui::Align2::CENTER_CENTER, status_label, egui::FontId::proportional(11.0), status_c);
+            });
+
+            ui.add_space(10.0);
+
+            // ── Thermal gauge ────────────────────────────────────────────────
+            ui.label(RichText::new("Thermal Core").color(hex_color(&p.secondary)).small());
+            let (bar, _) = ui.allocate_exact_size(Vec2::new(ui.available_width().min(360.0), 16.0), egui::Sense::hover());
+            ui.painter().rect_filled(bar, 4.0, hex_color(&p.bg));
+            ui.painter().rect_stroke(bar, 4.0, Stroke::new(1.0, hex_color(&p.border)));
+            let t_frac = (temp / 110.0).clamp(0.0, 1.0);
+            let cool = Color32::from_rgb(60, 210, 140);
+            let warm = Color32::from_rgb(255, 185, 40);
+            let hot  = Color32::from_rgb(255, 70, 70);
+            let fill_c = if temp < 75.0 {
+                lerp_color(cool, warm, (temp / 75.0).clamp(0.0, 1.0))
+            } else {
+                lerp_color(warm, hot, ((temp - 75.0) / 20.0).clamp(0.0, 1.0))
+            };
+            let fill = egui::Rect::from_min_size(bar.min, Vec2::new(bar.width() * t_frac, bar.height()));
+            ui.painter().rect_filled(fill, 4.0, fill_c);
+            ui.label(RichText::new(format!("{temp:.1} °C   ·   fan {} rpm", self.rack.heat_sink.fan_rpm)).color(hex_color(&p.text)).small());
+
+            ui.add_space(8.0);
+
+            // ── Power grid: dual PSU bars ────────────────────────────────────
+            ui.label(RichText::new("Power Grid").color(hex_color(&p.secondary)).small());
+            ui.horizontal(|ui| {
+                for (name, w) in [("A", self.rack.power.psu_a_wattage), ("B", self.rack.power.psu_b_wattage)] {
+                    ui.vertical(|ui| {
+                        let (col, _) = ui.allocate_exact_size(Vec2::new(22.0, 70.0), egui::Sense::hover());
+                        ui.painter().rect_filled(col, 3.0, hex_color(&p.bg));
+                        ui.painter().rect_stroke(col, 3.0, Stroke::new(1.0, hex_color(&p.border)));
+                        let frac = (w / 500.0).clamp(0.0, 1.0);
+                        let pc = if w > 450.0 { Color32::from_rgb(60, 210, 140) } else { Color32::from_rgb(255, 185, 40) };
+                        let ph = col.height() * frac;
+                        let pr = egui::Rect::from_min_size(egui::Pos2::new(col.min.x, col.max.y - ph), Vec2::new(col.width(), ph));
+                        ui.painter().rect_filled(pr, 3.0, pc);
+                        ui.label(RichText::new(format!("PSU {name}")).color(hex_color(&p.secondary)).small());
+                    });
+                    ui.add_space(6.0);
+                }
+                ui.add_space(8.0);
+                ui.label(RichText::new(format!("{:.0} W total", self.rack.power.total_wattage())).color(hex_color(&p.text)).small());
+            });
+
+            ui.add_space(10.0);
+
+            // ── 12-slot rack grid (3 rows × 4 cols) ──────────────────────────
+            section_heading(ui, "Modules", p);
+            for row in 0..3 {
+                ui.horizontal(|ui| {
+                    for col in 0..4 {
+                        let idx = row * 4 + col;
+                        let slot = self.rack.slots[idx].clone();
+                        let (cell, resp) = ui.allocate_exact_size(Vec2::new(78.0, 58.0), egui::Sense::click());
+                        hover_glow(ui, &resp, p);
+                        let selected = self.rack_selected_slot == Some(idx);
+                        let base = if slot.enabled && slot.kind != ModuleKind::Empty {
+                            hex_color(&p.surface).gamma_multiply(1.5)
+                        } else { hex_color(&p.bg) };
+                        ui.painter().rect_filled(cell, 6.0, base);
+                        let border_c = if selected { hex_color(&p.accent) } else { hex_color(&p.border) };
+                        ui.painter().rect_stroke(cell, 6.0, Stroke::new(if selected {2.0} else {1.0}, border_c));
+                        ui.painter().text(cell.center() - Vec2::new(0.0, 8.0), egui::Align2::CENTER_CENTER, slot.kind.glyph(), egui::FontId::proportional(22.0), hex_color(&p.primary));
+                        ui.painter().text(cell.center() + Vec2::new(0.0, 16.0), egui::Align2::CENTER_CENTER, format!("slot {idx}"), egui::FontId::proportional(8.0), hex_color(&p.secondary));
+                        let dot_c = if slot.enabled { Color32::from_rgb(60, 210, 140) } else { hex_color(&p.border) };
+                        ui.painter().circle_filled(cell.min + Vec2::new(8.0, 8.0), 3.0, dot_c);
+                        if resp.clicked() {
+                            self.rack_selected_slot = if selected { None } else { Some(idx) };
+                        }
+                    }
+                });
+                ui.add_space(4.0);
+            }
+
+            // ── Selected-slot inline editor ──────────────────────────────────
+            if let Some(idx) = self.rack_selected_slot {
+                ui.add_space(8.0);
+                let mut slot = self.rack.slots[idx].clone();
+                let mut changed = false;
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new(format!("Slot {idx}:")).color(hex_color(&p.primary)).strong());
+                    let kb = ui.button(RichText::new(slot.kind.label()).color(hex_color(&p.text)));
+                    hover_glow(ui, &kb, p);
+                    if kb.clicked() { slot.kind = slot.kind.next(); changed = true; }
+                    let toggle = ui.button(RichText::new(if slot.enabled { "On" } else { "Off" }).color(hex_color(&p.bg)).strong());
+                    if toggle.clicked() { slot.enabled = !slot.enabled; changed = true; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Resonance").color(hex_color(&p.secondary)).small());
+                    if ui.add(egui::Slider::new(&mut slot.resonance, 0.0..=9.5).show_value(true)).changed() { changed = true; }
+                });
+                ui.horizontal(|ui| {
+                    ui.label(RichText::new("Gain").color(hex_color(&p.secondary)).small());
+                    if ui.add(egui::Slider::new(&mut slot.gain, 0.0..=2.0).show_value(true)).changed() { changed = true; }
+                });
+                if changed { let _ = self.rack.hot_swap(idx, slot); }
+            }
+
+            ui.add_space(10.0);
+
+            // ── Signal meter (8-bar VU driven by last_output) ────────────────
+            ui.label(RichText::new("Signal").color(hex_color(&p.secondary)).small());
+            let (meter, _) = ui.allocate_exact_size(Vec2::new(ui.available_width().min(200.0), 40.0), egui::Sense::hover());
+            let base = self.rack.last_output.abs().min(1.0);
+            let t = ui.input(|i| i.time) as f32;
+            for j in 0..8 {
+                let wobble = if self.rack_running { (t * (2.0 + j as f32 * 0.4)).sin().abs() * 0.35 } else { 0.0 };
+                let h = (base * (0.5 + j as f32 * 0.06) + wobble).min(1.0);
+                let x = meter.min.x + j as f32 * (meter.width() / 8.0);
+                let bh = h * meter.height();
+                let br = egui::Rect::from_min_size(egui::Pos2::new(x, meter.max.y - bh), Vec2::new(meter.width() / 8.0 - 3.0, bh));
+                let vc = if h > 0.85 { Color32::from_rgb(255,60,60) } else if h > 0.65 { Color32::from_rgb(255,200,0) } else { Color32::from_rgb(60,220,60) };
+                ui.painter().rect_filled(br, 1.0, vc);
+            }
+
+            // Placeholder-vs-art hint.
+            if let Some(skin) = &self.rack_skin {
+                if skin.is_empty() {
+                    ui.add_space(8.0);
+                    ui.label(RichText::new("Using painter placeholders — drop PNGs into assets/rack/ to skin.").color(hex_color(&p.secondary)).italics().small());
+                }
+            }
         });
     }
 

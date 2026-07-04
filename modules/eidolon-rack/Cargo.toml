@@ -1,0 +1,9 @@
+[package]
+name = "eidolon-rack"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+myth-wire = { path = "../../crates/myth-wire" }
+serde = { workspace = true }
+thiserror = { workspace = true }

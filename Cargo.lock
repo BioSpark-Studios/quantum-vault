@@ -1337,6 +1337,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "eidolon-rack"
+version = "0.1.0"
+dependencies = [
+ "myth-wire",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "emath"
 version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3950,6 +3959,7 @@ dependencies = [
  "anyhow",
  "eframe",
  "egui",
+ "eidolon-rack",
  "image",
  "myth-wire",
  "mythos",
