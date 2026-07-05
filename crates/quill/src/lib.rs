@@ -17,9 +17,12 @@
 //! | `GEMINI_API_KEY`    | required when provider is `gemini`        | —                           |
 
 mod providers;
+mod settings;
 
 pub use providers::Provider;
+pub use settings::QuillSettings;
 
+use std::path::Path;
 use std::time::Duration;
 
 /// Error surface for every routing/transport failure.
@@ -50,6 +53,9 @@ pub enum QuillError {
         provider: &'static str,
         reason: String,
     },
+
+    #[error("settings error: {0}")]
+    Settings(String),
 }
 
 /// Router configuration: which provider to use and per-provider model choices.
@@ -88,26 +94,41 @@ impl QuillConfig {
     /// Build a config from environment variables, falling back to [`Default`].
     pub fn from_env() -> Result<Self, QuillError> {
         let mut cfg = Self::default();
+        cfg.apply_env()?;
+        Ok(cfg)
+    }
+
+    /// Resolve the effective config for a vault: start from the persisted
+    /// `.vaultforge/quill.json` (or defaults), then let environment variables
+    /// override for one-off runs. Precedence: defaults < settings file < env.
+    pub fn resolve(vault_dir: &Path) -> Result<Self, QuillError> {
+        let mut cfg = QuillSettings::load(vault_dir).to_config();
+        cfg.apply_env()?;
+        Ok(cfg)
+    }
+
+    /// Overlay any set `QUILL_*` / `OLLAMA_HOST` environment variables.
+    fn apply_env(&mut self) -> Result<(), QuillError> {
         if let Ok(p) = std::env::var("QUILL_PROVIDER") {
             if !p.trim().is_empty() {
-                cfg.provider = Provider::from_str(&p).ok_or(QuillError::UnknownProvider(p))?;
+                self.provider = Provider::from_str(&p).ok_or(QuillError::UnknownProvider(p))?;
             }
         }
         if let Ok(v) = std::env::var("OLLAMA_HOST") {
             if !v.trim().is_empty() {
-                cfg.ollama_host = v.trim_end_matches('/').to_string();
+                self.ollama_host = v.trim_end_matches('/').to_string();
             }
         }
         if let Ok(v) = std::env::var("QUILL_OLLAMA_MODEL") {
-            cfg.ollama_model = v;
+            self.ollama_model = v;
         }
         if let Ok(v) = std::env::var("QUILL_CLAUDE_MODEL") {
-            cfg.claude_model = v;
+            self.claude_model = v;
         }
         if let Ok(v) = std::env::var("QUILL_GEMINI_MODEL") {
-            cfg.gemini_model = v;
+            self.gemini_model = v;
         }
-        Ok(cfg)
+        Ok(())
     }
 }
 
@@ -127,6 +148,11 @@ impl QuillRouter {
         Ok(Self::new(QuillConfig::from_env()?))
     }
 
+    /// Build a router from a vault's persisted settings, with env overrides.
+    pub fn resolve(vault_dir: &Path) -> Result<Self, QuillError> {
+        Ok(Self::new(QuillConfig::resolve(vault_dir)?))
+    }
+
     pub fn config(&self) -> &QuillConfig {
         &self.config
     }
@@ -142,6 +168,20 @@ impl QuillRouter {
             Provider::Ollama => providers::ollama(&self.config, prompt),
             Provider::Claude => providers::claude(&self.config, prompt),
             Provider::Gemini => providers::gemini(&self.config, prompt),
+        }
+    }
+
+    /// Stream a single-turn reply, invoking `on_chunk` for each incremental
+    /// piece of text as it arrives. Returns the full concatenated reply.
+    pub fn ask_stream(
+        &self,
+        prompt: &str,
+        on_chunk: impl FnMut(&str),
+    ) -> Result<String, QuillError> {
+        match self.config.provider {
+            Provider::Ollama => providers::ollama_stream(&self.config, prompt, on_chunk),
+            Provider::Claude => providers::claude_stream(&self.config, prompt, on_chunk),
+            Provider::Gemini => providers::gemini_stream(&self.config, prompt, on_chunk),
         }
     }
 }

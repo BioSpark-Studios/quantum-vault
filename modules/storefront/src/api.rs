@@ -11,6 +11,9 @@
 //!   GET    /tomes/:id                  — get tome by id
 //!   GET    /status                     — RES wire packet summary
 //!   POST   /quill/ask                  — ask Quantum Quill (LLM router) a question
+//!   POST   /quill/ask/stream           — ask Quantum Quill, streamed as SSE
+//!   GET    /quill/settings             — read the persisted Quill config
+//!   PUT    /quill/settings             — update the persisted Quill config
 //!
 //! Authenticated routes (Bearer JWT):
 //!   GET    /me                         — current user profile + credits
@@ -25,12 +28,16 @@ use crate::{
 use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
-    response::IntoResponse,
+    response::{
+        sse::{Event, KeepAlive, Sse},
+        IntoResponse,
+    },
     routing::{get, post},
     Json, Router,
 };
 use axum_extra::extract::Multipart;
 use std::sync::{Arc, Mutex};
+use tokio_stream::wrappers::ReceiverStream;
 
 pub type StoreState = Arc<Mutex<Storefront>>;
 pub type UserState = Arc<Mutex<UserStore>>;
@@ -65,6 +72,8 @@ pub fn router(state: AppState) -> Router {
         .route("/tomes/:id",           get(get_tome))
         .route("/status",              get(status))
         .route("/quill/ask",           post(quill_ask))
+        .route("/quill/ask/stream",    post(quill_ask_stream))
+        .route("/quill/settings",      get(quill_get_settings).put(quill_put_settings))
         // Authenticated
         .route("/me",                  get(me))
         .route("/checkout/:id",        post(checkout))
@@ -91,11 +100,13 @@ struct AskBody {
 
 /// POST /quill/ask — route a prompt through the Quill LLM router.
 ///
-/// The router (provider + models) is resolved from the process environment.
-/// Runs on a blocking thread since `quill` uses a blocking HTTP client.
-async fn quill_ask(Json(body): Json<AskBody>) -> impl IntoResponse {
+/// The router (provider + models) is resolved from `<vault>/.vaultforge/quill.json`
+/// with environment overrides. Runs on a blocking thread since `quill` uses a
+/// blocking HTTP client.
+async fn quill_ask(State(app): State<AppState>, Json(body): Json<AskBody>) -> impl IntoResponse {
+    let vault = app.vault_dir.clone();
     let joined = tokio::task::spawn_blocking(move || {
-        let router = quill::QuillRouter::from_env()?;
+        let router = quill::QuillRouter::resolve(&vault)?;
         let provider = router.provider().label();
         router.ask(&body.prompt).map(|reply| (provider, reply))
     })
@@ -115,6 +126,63 @@ async fn quill_ask(Json(body): Json<AskBody>) -> impl IntoResponse {
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({ "error": format!("join error: {e}") })),
+        )
+            .into_response(),
+    }
+}
+
+/// POST /quill/ask/stream — same as `/quill/ask` but streamed token-by-token
+/// as Server-Sent Events. Emits a `meta` event (provider), unnamed `message`
+/// events (text chunks), then a terminal `done` or `error` event.
+async fn quill_ask_stream(
+    State(app): State<AppState>,
+    Json(body): Json<AskBody>,
+) -> Sse<ReceiverStream<Result<Event, std::convert::Infallible>>> {
+    let vault = app.vault_dir.clone();
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, std::convert::Infallible>>(64);
+
+    tokio::task::spawn_blocking(move || match quill::QuillRouter::resolve(&vault) {
+        Ok(router) => {
+            let _ = tx.blocking_send(Ok(Event::default()
+                .event("meta")
+                .data(router.provider().label())));
+            let res = router.ask_stream(&body.prompt, |chunk| {
+                let _ = tx.blocking_send(Ok(Event::default().data(chunk)));
+            });
+            let terminal = match res {
+                Ok(_) => Event::default().event("done").data("ok"),
+                Err(e) => Event::default().event("error").data(e.to_string()),
+            };
+            let _ = tx.blocking_send(Ok(terminal));
+        }
+        Err(e) => {
+            let _ = tx.blocking_send(Ok(Event::default().event("error").data(e.to_string())));
+        }
+    });
+
+    Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::default())
+}
+
+/// GET /quill/settings — read the persisted Quill configuration (no secrets).
+async fn quill_get_settings(State(app): State<AppState>) -> impl IntoResponse {
+    let settings = quill::QuillSettings::load(&app.vault_dir);
+    (StatusCode::OK, Json(settings))
+}
+
+/// PUT /quill/settings — persist a new Quill configuration to disk.
+async fn quill_put_settings(
+    State(app): State<AppState>,
+    Json(settings): Json<quill::QuillSettings>,
+) -> impl IntoResponse {
+    match settings.save(&app.vault_dir) {
+        Ok(()) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "status": "saved" })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": e.to_string() })),
         )
             .into_response(),
     }

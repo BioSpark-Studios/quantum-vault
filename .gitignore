@@ -148,3 +148,6 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# VaultForge per-user runtime state (profile, collections, Quill config)
+.vaultforge/

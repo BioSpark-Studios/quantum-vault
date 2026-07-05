@@ -50,14 +50,17 @@ fn main() -> Result<()> {
     // ── Quantum Quill (agent assistant) ───────────────────────────────────────
     // A quick `--ask` shouldn't need to boot the whole vault.
     if let Some(prompt) = &cli.ask {
-        let router = quill::QuillRouter::from_env()?;
+        use std::io::Write;
+        let router = quill::QuillRouter::resolve(&cli.vault)?;
         println!("Quantum Quill · via {}\n", router.provider().label());
-        match router.ask(prompt) {
-            Ok(reply) => println!("{reply}"),
-            Err(e) => {
-                eprintln!("Quill error: {e}");
-                std::process::exit(1);
-            }
+        let result = router.ask_stream(prompt, |chunk| {
+            print!("{chunk}");
+            let _ = std::io::stdout().flush();
+        });
+        println!();
+        if let Err(e) = result {
+            eprintln!("Quill error: {e}");
+            std::process::exit(1);
         }
         return Ok(());
     }
@@ -264,7 +267,7 @@ fn main() -> Result<()> {
         let app = ControlRoomApp::new(
             theme, capsules, persona_data, plugin_slots, remix_links,
             profile_mgr.profile, col_mgr.collections,
-            blueprints, sf_collections,
+            blueprints, sf_collections, cli.vault.clone(),
         );
 
         let options = eframe::NativeOptions {
