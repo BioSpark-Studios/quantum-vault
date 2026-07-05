@@ -3212,6 +3212,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quill"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "ureq",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3857,6 +3867,7 @@ dependencies = [
  "myth-wire",
  "mythos",
  "qgcp",
+ "quill",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -4453,6 +4464,7 @@ dependencies = [
  "mythos",
  "personas",
  "qgcp",
+ "quill",
  "remix-engine",
  "serde_json",
  "storefront",

@@ -10,6 +10,7 @@
 //!   GET    /tomes                      — list all tomes
 //!   GET    /tomes/:id                  — get tome by id
 //!   GET    /status                     — RES wire packet summary
+//!   POST   /quill/ask                  — ask Quantum Quill (LLM router) a question
 //!
 //! Authenticated routes (Bearer JWT):
 //!   GET    /me                         — current user profile + credits
@@ -63,6 +64,7 @@ pub fn router(state: AppState) -> Router {
         .route("/tomes",               get(list_tomes))
         .route("/tomes/:id",           get(get_tome))
         .route("/status",              get(status))
+        .route("/quill/ask",           post(quill_ask))
         // Authenticated
         .route("/me",                  get(me))
         .route("/checkout/:id",        post(checkout))
@@ -78,6 +80,44 @@ pub fn simple_router(store: StoreState) -> Router {
         vault_dir: std::path::PathBuf::from("."),
     };
     router(state)
+}
+
+// ── Quantum Quill ─────────────────────────────────────────────────────────────
+
+#[derive(serde::Deserialize)]
+struct AskBody {
+    prompt: String,
+}
+
+/// POST /quill/ask — route a prompt through the Quill LLM router.
+///
+/// The router (provider + models) is resolved from the process environment.
+/// Runs on a blocking thread since `quill` uses a blocking HTTP client.
+async fn quill_ask(Json(body): Json<AskBody>) -> impl IntoResponse {
+    let joined = tokio::task::spawn_blocking(move || {
+        let router = quill::QuillRouter::from_env()?;
+        let provider = router.provider().label();
+        router.ask(&body.prompt).map(|reply| (provider, reply))
+    })
+    .await;
+
+    match joined {
+        Ok(Ok((provider, reply))) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "provider": provider, "reply": reply })),
+        )
+            .into_response(),
+        Ok(Err(e)) => (
+            StatusCode::BAD_GATEWAY,
+            Json(serde_json::json!({ "error": e.to_string() })),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("join error: {e}") })),
+        )
+            .into_response(),
+    }
 }
 
 // ── Auth handlers ─────────────────────────────────────────────────────────────

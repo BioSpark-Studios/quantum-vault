@@ -22,9 +22,17 @@ struct Cli {
     #[arg(long)]
     headless: bool,
 
-    /// Start the storefront REST API on this port (implies headless)
-    #[arg(long)]
+    /// Start the storefront REST API on this port (implies headless).
+    /// Bare `--serve` defaults to 7878 to avoid clashing with common
+    /// dev services (e.g. Ollama on 8080/11434).
+    #[arg(long, num_args = 0..=1, default_missing_value = "7878")]
     serve: Option<u16>,
+
+    /// Ask Quantum Quill, the vault's agent assistant, a single question
+    /// and print the reply (implies headless). Provider/model are resolved
+    /// from the environment — see the `quill` crate docs.
+    #[arg(long, value_name = "PROMPT")]
+    ask: Option<String>,
 
     /// Save a .qgenesis manifest to the vault directory after boot
     #[arg(long)]
@@ -38,6 +46,21 @@ fn main() -> Result<()> {
     println!("╔══════════════════════════════════════╗");
     println!("║     VaultForge  ·  myth-os  v0.1     ║");
     println!("╚══════════════════════════════════════╝\n");
+
+    // ── Quantum Quill (agent assistant) ───────────────────────────────────────
+    // A quick `--ask` shouldn't need to boot the whole vault.
+    if let Some(prompt) = &cli.ask {
+        let router = quill::QuillRouter::from_env()?;
+        println!("Quantum Quill · via {}\n", router.provider().label());
+        match router.ask(prompt) {
+            Ok(reply) => println!("{reply}"),
+            Err(e) => {
+                eprintln!("Quill error: {e}");
+                std::process::exit(1);
+            }
+        }
+        return Ok(());
+    }
 
     // ── Vaultmap ──────────────────────────────────────────────────────────────
     match qgcp::VaultMap::load(&cli.vault) {

@@ -6,6 +6,7 @@ members = [
     "crates/qgcp",
     "crates/loom-engine",
     "crates/theater",
+    "crates/quill",
     "modules/vault-core",
     "modules/vault-scrolls",
     "modules/vault-glyphs",
