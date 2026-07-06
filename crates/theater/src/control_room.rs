@@ -134,6 +134,7 @@ pub enum NavTab {
     Rack,
     Profile,
     Server,
+    Quill,
     Settings,
 }
 
@@ -151,6 +152,7 @@ impl NavTab {
             NavTab::Rack         => "🎛",
             NavTab::Profile      => "◎",
             NavTab::Server       => "⇆",
+            NavTab::Quill        => "✒",
             NavTab::Settings     => "⚙",
         }
     }
@@ -167,20 +169,28 @@ impl NavTab {
             NavTab::Rack         => "Rack",
             NavTab::Profile      => "Profile",
             NavTab::Server       => "Server",
+            NavTab::Quill        => "Quill",
             NavTab::Settings     => "Settings",
         }
     }
-    fn all() -> [NavTab; 12] {
+    fn all() -> [NavTab; 13] {
         [
             NavTab::Capsules, NavTab::Personas, NavTab::Plugins, NavTab::Lineage,
             NavTab::Collections, NavTab::Blueprints, NavTab::Upload,
-            NavTab::DjDeck, NavTab::Rack, NavTab::Profile, NavTab::Server, NavTab::Settings,
+            NavTab::DjDeck, NavTab::Rack, NavTab::Profile, NavTab::Server, NavTab::Quill, NavTab::Settings,
         ]
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ServerMode { Login, Register }
+
+/// Messages pushed from the background Quill streaming thread to the UI.
+enum QuillMsg {
+    Chunk(String),
+    Done,
+    Error(String),
+}
 
 // ── ControlRoomApp ────────────────────────────────────────────────────────────
 
@@ -241,9 +251,21 @@ pub struct ControlRoomApp {
     rack_running: bool,
     rack_selected_slot: Option<usize>,
     rack_skin: Option<crate::assets::RackSkin>,
+    // Quantum Quill
+    vault_dir: std::path::PathBuf,
+    quill_settings: quill::QuillSettings,
+    quill_provider_idx: usize,
+    quill_settings_msg: String,
+    quill_prompt: String,
+    quill_response: String,
+    quill_streaming: bool,
+    quill_rx: Option<std::sync::mpsc::Receiver<QuillMsg>>,
 }
 
+const QUILL_PROVIDERS: [&str; 3] = ["ollama", "claude", "gemini"];
+
 impl ControlRoomApp {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         theme: VaultTheme,
         capsules: Vec<VaultCapsule>,
@@ -254,9 +276,15 @@ impl ControlRoomApp {
         collections: Vec<user_profile::UserCollection>,
         blueprints: Vec<Blueprint>,
         storefront_collections: Vec<Collection>,
+        vault_dir: std::path::PathBuf,
     ) -> Self {
         let edit_display_name = profile.display_name.clone();
         let edit_avatar = profile.avatar.clone();
+        let quill_settings = quill::QuillSettings::load(&vault_dir);
+        let quill_provider_idx = QUILL_PROVIDERS
+            .iter()
+            .position(|p| *p == quill_settings.provider)
+            .unwrap_or(0);
         Self {
             theme,
             capsules,
@@ -282,7 +310,7 @@ impl ControlRoomApp {
             storefront_collections,
             edit_display_name,
             edit_avatar,
-            server_url: "http://localhost:8080".to_string(),
+            server_url: "http://localhost:7878".to_string(),
             server_token: None,
             server_username: String::new(),
             server_credits: 0,
@@ -303,6 +331,14 @@ impl ControlRoomApp {
             rack_running: false,
             rack_selected_slot: None,
             rack_skin: None,
+            vault_dir,
+            quill_settings,
+            quill_provider_idx,
+            quill_settings_msg: String::new(),
+            quill_prompt: String::new(),
+            quill_response: String::new(),
+            quill_streaming: false,
+            quill_rx: None,
         }
     }
 }
@@ -342,6 +378,26 @@ impl eframe::App for ControlRoomApp {
             self.rack.heat_sink.chassis_temp -= 4.0 * dt;
             self.rack.update_telemetry();
             ctx.request_repaint();
+        }
+
+        // Drain any pending Quill stream chunks pushed from the worker thread.
+        if let Some(rx) = self.quill_rx.take() {
+            let mut finished = false;
+            while let Ok(msg) = rx.try_recv() {
+                match msg {
+                    QuillMsg::Chunk(c) => self.quill_response.push_str(&c),
+                    QuillMsg::Done => finished = true,
+                    QuillMsg::Error(e) => {
+                        self.quill_response.push_str(&format!("\n\n⚠ {e}"));
+                        finished = true;
+                    }
+                }
+            }
+            if finished {
+                self.quill_streaming = false;
+            } else {
+                self.quill_rx = Some(rx);
+            }
         }
 
         // ── Left nav sidebar ──────────────────────────────────────────────────
@@ -429,6 +485,7 @@ impl eframe::App for ControlRoomApp {
                     NavTab::Rack         => self.show_rack(ui, &p),
                     NavTab::Profile      => self.show_profile(ui, &p),
                     NavTab::Server       => self.show_server(ui, &p),
+                    NavTab::Quill        => self.show_quill(ui, &p),
                     NavTab::Settings     => self.show_settings(ui, &p),
                 }
             });
@@ -1473,6 +1530,163 @@ impl ControlRoomApp {
             self.upload_in_progress = false;
             self.upload_status = result.unwrap_or_else(|e| format!("✗ {e}"));
         }
+    }
+
+    fn show_quill(&mut self, ui: &mut Ui, p: &ThemePalette) {
+        // ── Chat ──────────────────────────────────────────────────────────────
+        card_frame(p).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                section_heading(ui, "Quantum Quill", p);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let (c, label) = if self.quill_streaming {
+                        (hex_color(&p.accent), "● streaming…".to_string())
+                    } else {
+                        (hex_color(&p.secondary), format!("via {}", self.quill_settings.provider))
+                    };
+                    ui.label(RichText::new(label).color(c).small());
+                });
+            });
+            ui.label(RichText::new("Ask the vault's agent assistant. Replies stream in live.")
+                .color(hex_color(&p.secondary)).small());
+            ui.add_space(8.0);
+
+            ui.add(
+                egui::TextEdit::multiline(&mut self.quill_prompt)
+                    .desired_rows(2)
+                    .desired_width(f32::INFINITY)
+                    .hint_text("Ask Quantum Quill…")
+                    .text_color(hex_color(&p.text)),
+            );
+            ui.add_space(6.0);
+
+            ui.horizontal(|ui| {
+                let can_send = !self.quill_streaming && !self.quill_prompt.trim().is_empty();
+                let send = ui.add_enabled(
+                    can_send,
+                    egui::Button::new(RichText::new("  ✒  Ask  ").color(hex_color(&p.bg)).strong())
+                        .fill(hex_color(&p.accent)),
+                );
+                hover_glow(ui, &send, p);
+                if send.clicked() {
+                    let ctx = ui.ctx().clone();
+                    self.start_quill_stream(&ctx);
+                }
+                if !self.quill_response.is_empty() {
+                    let clear = ui.button(RichText::new("Clear").color(hex_color(&p.secondary)));
+                    if clear.clicked() {
+                        self.quill_response.clear();
+                    }
+                }
+            });
+
+            if !self.quill_response.is_empty() {
+                ui.add_space(10.0);
+                ScrollArea::vertical().max_height(240.0).show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.label(RichText::new(&self.quill_response).color(hex_color(&p.text)));
+                });
+            }
+        });
+
+        ui.add_space(12.0);
+
+        // ── Configuration ─────────────────────────────────────────────────────
+        card_frame(p).show(ui, |ui| {
+            section_heading(ui, "Quill Configuration", p);
+            ui.label(RichText::new("Saved to .vaultforge/quill.json. API keys stay in the environment.")
+                .color(hex_color(&p.secondary)).small());
+            ui.add_space(8.0);
+
+            egui::Grid::new("quill_cfg").num_columns(2).spacing(Vec2::new(12.0, 8.0)).show(ui, |ui| {
+                ui.label(RichText::new("Provider").color(hex_color(&p.secondary)).small());
+                egui::ComboBox::from_id_source("quill_provider")
+                    .selected_text(QUILL_PROVIDERS[self.quill_provider_idx])
+                    .show_ui(ui, |ui| {
+                        for (i, name) in QUILL_PROVIDERS.iter().enumerate() {
+                            ui.selectable_value(&mut self.quill_provider_idx, i, *name);
+                        }
+                    });
+                ui.end_row();
+
+                match self.quill_provider_idx {
+                    0 => {
+                        ui.label(RichText::new("Ollama host").color(hex_color(&p.secondary)).small());
+                        ui.add(egui::TextEdit::singleline(&mut self.quill_settings.ollama_host).desired_width(260.0).text_color(hex_color(&p.text)));
+                        ui.end_row();
+                        ui.label(RichText::new("Ollama model").color(hex_color(&p.secondary)).small());
+                        ui.add(egui::TextEdit::singleline(&mut self.quill_settings.ollama_model).desired_width(260.0).text_color(hex_color(&p.text)));
+                        ui.end_row();
+                    }
+                    1 => {
+                        ui.label(RichText::new("Claude model").color(hex_color(&p.secondary)).small());
+                        ui.add(egui::TextEdit::singleline(&mut self.quill_settings.claude_model).desired_width(260.0).text_color(hex_color(&p.text)));
+                        ui.end_row();
+                        ui.label(RichText::new("").small());
+                        ui.label(RichText::new("Set ANTHROPIC_API_KEY in the environment.").color(hex_color(&p.secondary)).small());
+                        ui.end_row();
+                    }
+                    _ => {
+                        ui.label(RichText::new("Gemini model").color(hex_color(&p.secondary)).small());
+                        ui.add(egui::TextEdit::singleline(&mut self.quill_settings.gemini_model).desired_width(260.0).text_color(hex_color(&p.text)));
+                        ui.end_row();
+                        ui.label(RichText::new("").small());
+                        ui.label(RichText::new("Set GEMINI_API_KEY in the environment.").color(hex_color(&p.secondary)).small());
+                        ui.end_row();
+                    }
+                }
+
+                ui.label(RichText::new("System prompt").color(hex_color(&p.secondary)).small());
+                ui.add(egui::TextEdit::multiline(&mut self.quill_settings.system).desired_rows(2).desired_width(260.0).text_color(hex_color(&p.text)));
+                ui.end_row();
+            });
+
+            ui.add_space(10.0);
+            let save = ui.button(RichText::new("  💾  Save settings  ").color(hex_color(&p.accent)).strong());
+            hover_glow(ui, &save, p);
+            if save.clicked() {
+                self.quill_settings.provider = QUILL_PROVIDERS[self.quill_provider_idx].to_string();
+                self.quill_settings_msg = match self.quill_settings.save(&self.vault_dir) {
+                    Ok(()) => "✓ Saved".to_string(),
+                    Err(e) => format!("✗ {e}"),
+                };
+            }
+            if !self.quill_settings_msg.is_empty() {
+                ui.add_space(6.0);
+                let c = if self.quill_settings_msg.starts_with('✓') {
+                    Color32::from_rgb(76, 210, 80)
+                } else {
+                    Color32::from_rgb(220, 80, 80)
+                };
+                ui.label(RichText::new(&self.quill_settings_msg).color(c).small());
+            }
+        });
+    }
+
+    /// Kick off a background streaming request, pushing chunks over a channel.
+    fn start_quill_stream(&mut self, ctx: &egui::Context) {
+        self.quill_settings.provider = QUILL_PROVIDERS[self.quill_provider_idx].to_string();
+        let cfg = self.quill_settings.to_config();
+        let prompt = self.quill_prompt.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.quill_rx = Some(rx);
+        self.quill_response.clear();
+        self.quill_streaming = true;
+        let ctx = ctx.clone();
+
+        std::thread::spawn(move || {
+            let router = quill::QuillRouter::new(cfg);
+            let tx_chunk = tx.clone();
+            let ctx_chunk = ctx.clone();
+            let res = router.ask_stream(&prompt, move |c| {
+                let _ = tx_chunk.send(QuillMsg::Chunk(c.to_string()));
+                ctx_chunk.request_repaint();
+            });
+            let _ = match res {
+                Ok(_) => tx.send(QuillMsg::Done),
+                Err(e) => tx.send(QuillMsg::Error(e.to_string())),
+            };
+            ctx.request_repaint();
+        });
     }
 
     fn show_settings(&mut self, ui: &mut Ui, p: &ThemePalette) {

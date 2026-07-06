@@ -13,6 +13,7 @@ mythos = { path = "../mythos" }
 user-profile = { path = "../../modules/user-profile" }
 storefront = { path = "../../modules/storefront" }
 eidolon-rack = { path = "../../modules/eidolon-rack" }
+quill = { path = "../quill" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
