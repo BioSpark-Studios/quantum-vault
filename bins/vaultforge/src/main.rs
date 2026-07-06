@@ -22,9 +22,17 @@ struct Cli {
     #[arg(long)]
     headless: bool,
 
-    /// Start the storefront REST API on this port (implies headless)
-    #[arg(long)]
+    /// Start the storefront REST API on this port (implies headless).
+    /// Bare `--serve` defaults to 7878 to avoid clashing with common
+    /// dev services (e.g. Ollama on 8080/11434).
+    #[arg(long, num_args = 0..=1, default_missing_value = "7878")]
     serve: Option<u16>,
+
+    /// Ask Quantum Quill, the vault's agent assistant, a single question
+    /// and print the reply (implies headless). Provider/model are resolved
+    /// from the environment — see the `quill` crate docs.
+    #[arg(long, value_name = "PROMPT")]
+    ask: Option<String>,
 
     /// Save a .qgenesis manifest to the vault directory after boot
     #[arg(long)]
@@ -38,6 +46,24 @@ fn main() -> Result<()> {
     println!("╔══════════════════════════════════════╗");
     println!("║     VaultForge  ·  myth-os  v0.1     ║");
     println!("╚══════════════════════════════════════╝\n");
+
+    // ── Quantum Quill (agent assistant) ───────────────────────────────────────
+    // A quick `--ask` shouldn't need to boot the whole vault.
+    if let Some(prompt) = &cli.ask {
+        use std::io::Write;
+        let router = quill::QuillRouter::resolve(&cli.vault)?;
+        println!("Quantum Quill · via {}\n", router.provider().label());
+        let result = router.ask_stream(prompt, |chunk| {
+            print!("{chunk}");
+            let _ = std::io::stdout().flush();
+        });
+        println!();
+        if let Err(e) = result {
+            eprintln!("Quill error: {e}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
 
     // ── Vaultmap ──────────────────────────────────────────────────────────────
     match qgcp::VaultMap::load(&cli.vault) {
@@ -241,7 +267,7 @@ fn main() -> Result<()> {
         let app = ControlRoomApp::new(
             theme, capsules, persona_data, plugin_slots, remix_links,
             profile_mgr.profile, col_mgr.collections,
-            blueprints, sf_collections,
+            blueprints, sf_collections, cli.vault.clone(),
         );
 
         let options = eframe::NativeOptions {

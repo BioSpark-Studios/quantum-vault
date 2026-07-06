@@ -3212,6 +3212,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quill"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "ureq",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3857,10 +3867,12 @@ dependencies = [
  "myth-wire",
  "mythos",
  "qgcp",
+ "quill",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-stream",
  "tower-http",
 ]
 
@@ -3953,6 +3965,7 @@ dependencies = [
  "image",
  "myth-wire",
  "mythos",
+ "quill",
  "rfd",
  "serde",
  "serde_json",
@@ -4102,6 +4115,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.118",
+]
+
+[[package]]
+name = "tokio-stream"
+version = "0.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32da49809aab5c3bc678af03902d4ccddea2a87d028d86392a4b1560c6906c70"
+dependencies = [
+ "futures-core",
+ "pin-project-lite",
+ "tokio",
 ]
 
 [[package]]
@@ -4453,6 +4477,7 @@ dependencies = [
  "mythos",
  "personas",
  "qgcp",
+ "quill",
  "remix-engine",
  "serde_json",
  "storefront",
