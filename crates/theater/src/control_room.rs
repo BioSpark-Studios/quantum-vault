@@ -33,6 +33,16 @@ fn glow_color(hex8: &str, t: f32) -> Color32 {
     Color32::from_rgba_premultiplied(c.r(), c.g(), c.b(), a)
 }
 
+/// Scale a colour's brightness by `factor`. Unlike egui's `gamma_multiply`
+/// (which requires `0.0..=1.0` and panics otherwise in debug builds), this
+/// accepts factors above 1.0 to lighten, clamping each channel to 0..=255.
+/// Alpha is preserved.
+fn brighten(c: Color32, factor: f32) -> Color32 {
+    let f = factor.max(0.0);
+    let ch = |v: u8| (v as f32 * f).round().clamp(0.0, 255.0) as u8;
+    Color32::from_rgba_unmultiplied(ch(c.r()), ch(c.g()), ch(c.b()), c.a())
+}
+
 fn faction_color(f: Option<Faction>) -> Color32 {
     match f {
         Some(Faction::Luminarite) => Color32::from_rgb(245, 215, 110),
@@ -110,7 +120,7 @@ fn apply_visuals(ctx: &egui::Context, p: &ThemePalette) {
     vis.window_fill                   = hex_color(&p.surface);
     vis.window_stroke                 = Stroke::new(1.0, hex_color(&p.border));
     vis.widgets.inactive.bg_fill      = hex_color(&p.surface);
-    vis.widgets.hovered.bg_fill       = hex_color(&p.surface).gamma_multiply(1.2);
+    vis.widgets.hovered.bg_fill       = brighten(hex_color(&p.surface), 1.2);
     vis.widgets.active.bg_fill        = hex_color(&p.accent);
     vis.selection.bg_fill             = hex_color(&p.accent).gamma_multiply(0.4);
     vis.widgets.inactive.fg_stroke    = Stroke::new(1.0, hex_color(&p.text));
@@ -517,7 +527,7 @@ impl ControlRoomApp {
                         Vec2::new(ui.available_width(), 28.0), egui::Sense::click(),
                     );
                     if resp.hovered() || selected {
-                        ui.painter().rect_filled(row_rect, 4.0, hex_color(&p.surface).gamma_multiply(1.5));
+                        ui.painter().rect_filled(row_rect, 4.0, brighten(hex_color(&p.surface), 1.5));
                     }
                     if selected {
                         let bar = egui::Rect::from_min_size(row_rect.min, Vec2::new(3.0, row_rect.height()));
@@ -694,7 +704,7 @@ impl ControlRoomApp {
                     let derived_start = arrow_end + 4.0;
 
                     let src_rect = egui::Rect::from_min_size(resp.rect.min + Vec2::new(4.0, 8.0), Vec2::new(132.0, 24.0));
-                    ui.painter().rect_filled(src_rect, 4.0, hex_color(&p.surface).gamma_multiply(1.6));
+                    ui.painter().rect_filled(src_rect, 4.0, brighten(hex_color(&p.surface), 1.6));
                     ui.painter().rect_stroke(src_rect, 4.0, Stroke::new(1.0, hex_color(&p.border)));
                     ui.painter().text(src_rect.center(), egui::Align2::CENTER_CENTER, &src[..src.len().min(16)], egui::FontId::proportional(10.0), hex_color(&p.secondary));
 
@@ -845,7 +855,7 @@ impl ControlRoomApp {
                     let (row_rect, resp) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 44.0), egui::Sense::click());
                     hover_glow(ui, &resp, p);
                     if resp.hovered() {
-                        ui.painter().rect_filled(row_rect, 6.0, hex_color(&p.surface).gamma_multiply(1.4));
+                        ui.painter().rect_filled(row_rect, 6.0, brighten(hex_color(&p.surface), 1.4));
                     }
                     ui.painter().rect_stroke(row_rect.shrink(1.0), 6.0, Stroke::new(1.0, hex_color(&p.border)));
 
@@ -1093,7 +1103,7 @@ impl ControlRoomApp {
                         hover_glow(ui, &resp, p);
                         let selected = self.rack_selected_slot == Some(idx);
                         let base = if slot.enabled && slot.kind != ModuleKind::Empty {
-                            hex_color(&p.surface).gamma_multiply(1.5)
+                            brighten(hex_color(&p.surface), 1.5)
                         } else { hex_color(&p.bg) };
                         ui.painter().rect_filled(cell, 6.0, base);
                         let border_c = if selected { hex_color(&p.accent) } else { hex_color(&p.border) };
@@ -1750,4 +1760,30 @@ fn lerp_color(a: Color32, b: Color32, t: f32) -> Color32 {
         (a.b() as f32 + (b.b() as f32 - a.b() as f32) * t) as u8,
         (a.a() as f32 + (b.a() as f32 - a.a() as f32) * t) as u8,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn apply_visuals_never_trips_gamma_assert() {
+        // Regression: apply_visuals built widget fills via gamma_multiply(>1.0),
+        // which panics in egui debug builds on the very first painted frame.
+        let ctx = egui::Context::default();
+        for theme in THEMES.iter() {
+            apply_visuals(&ctx, &theme.palette);
+        }
+    }
+
+    #[test]
+    fn brighten_clamps_out_of_range() {
+        let c = Color32::from_rgb(200, 100, 50);
+        // Lightening past white clamps to 255 rather than panicking.
+        let up = brighten(c, 4.0);
+        assert_eq!((up.r(), up.g()), (255, 255));
+        // A negative factor clamps to black.
+        let down = brighten(c, -3.0);
+        assert_eq!((down.r(), down.g(), down.b()), (0, 0, 0));
+    }
 }
